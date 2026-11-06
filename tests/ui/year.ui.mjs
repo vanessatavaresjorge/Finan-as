@@ -99,6 +99,8 @@ try {
   await waitFor(chrome, `document.querySelector('.cols button.sel').dataset.v === '${neg}'`);
   assert.equal(await chrome.eval(text('.readout b')), formatPct(B.months[neg].rate));
   assert.ok((await chrome.eval(text('.readout .label'))).includes('acima do que entrou'));
+  assert.equal(await chrome.eval(q('.readout b', 'getComputedStyle(el).color')), 'rgb(163, 54, 31)');
+  assert.equal(await chrome.eval(`getComputedStyle(document.querySelectorAll('.yrow')[${neg}].querySelector('b')).color`), 'rgb(163, 54, 31)');
   await chrome.screenshot(`${SHOTS}/year-poupanca.png`, PHONE);
   // selected month survives the Gastos/Poupança switch
   await chrome.click('[data-act="mode"][data-v="gastos"]');

@@ -33,6 +33,9 @@ const euroTick = cents => {
   const t = Number.isInteger(e) ? grp(e) : e.toFixed(2).replace('.', ',');
   return (cents < 0 ? MINUS : '') + t;
 };
+// Colour by what is shown: a rate that displays as 0% is not negative.
+const isNeg = rate => rate !== null && Math.round(rate * 100) < 0;
+const DANGER = ' style="color:var(--danger)"';
 const pctTick = p => (p < 0 ? MINUS : '') + Math.abs(p) + '%';
 
 // Everything that differs between Gastos and Poupança, in one shape the page below can use.
@@ -42,22 +45,21 @@ function describe(model, route, casa, sel, categories) {
   if (route.mode === 'poupanca') {
     const rates = model.months.map(m => (m ? m.rate * 100 : null));
     const { min, max, step } = model.scale;
-    const neg = model.rate !== null && model.rate < 0;
-    const ms = model.months[sel];
+        const ms = model.months[sel];
     const sub = !ms ? 'Sem entradas' : ms.saved >= 0 ? `${eur(ms.saved)} poupados` : `${eur(-ms.saved)} acima do que entrou`;
     const mSplit = i => (casa ? splitLine(model.monthSplit[i].map(p => ({ name: p.name, text: savedTxt(p) }))) : '');
     return {
       head: `<div style="margin-top:16px"><div class="label">Taxa de poupança em ${year}${where}</div>
-          <div class="big num"${neg ? ' style="color:var(--danger)"' : ''}>${formatPct(model.rate)}</div>
+          <div class="big num"${isNeg(model.rate) ? DANGER : ''}>${formatPct(model.rate)}</div>
           ${casa ? splitLine(model.split.map(p => ({ name: p.name, text: savedTxt(p) }))) : ''}</div>
         <div class="pair"><div class="card"><span class="label">Poupaste</span><b class="num"${model.saved < 0 ? ' style="color:var(--danger)"' : ''}>${eur(model.saved)}</b></div>
         <div class="card"><span class="label">Mês com mais poupança</span><b>${model.best ? cap(MONTHS[model.best.month]) : '—'}</b></div></div>
         ${model.inv > 0 ? `<p class="label" style="margin-top:10px">Foi para categorias de poupança: ${eur(model.inv)}</p>` : ''}`,
       values: rates, lo: min, hi: max, step, tick: pctTick, chartName: 'Taxa de poupança',
       fmt: i => (rates[i] === null ? '—' : formatPct(model.months[i].rate)),
-      readSub: sub, readSplit: mSplit(sel), unit: 'poupado · taxa',
+      readStyle: ms && isNeg(ms.rate) ? DANGER : '', readSub: sub, readSplit: mSplit(sel), unit: 'poupado · taxa',
       listVal: i => (rates[i] === null ? '<b class="none">—</b>'
-        : `<span class="rv"><span><span class="label" style="margin-right:10px">${eur(model.months[i].saved)}</span><b class="num"${rates[i] < 0 ? ' style="color:var(--danger)"' : ''}>${formatPct(model.months[i].rate)}</b></span>${mSplit(i)}</span>`),
+        : `<span class="rv"><span><span class="label" style="margin-right:10px">${eur(model.months[i].saved)}</span><b class="num"${isNeg(model.months[i].rate) ? DANGER : ''}>${formatPct(model.months[i].rate)}</b></span>${mSplit(i)}</span>`),
     };
   }
   const fc = ui.filter === 'all' ? null : categories.find(c => c.id === ui.filter);
@@ -73,7 +75,7 @@ function describe(model, route, casa, sel, categories) {
       <div class="fchips">${chips}</div>`,
     values: model.months, lo: 0, hi: model.scale.top, step: model.scale.step, tick: euroTick, chartName: 'Saídas',
     fmt: i => eur(model.months[i]),
-    readSub: '', readSplit: mSplit(sel), unit: 'em euros',
+    readStyle: '', readSub: '', readSplit: mSplit(sel), unit: 'em euros',
     listVal: i => (model.months[i] > 0
       ? `<span class="rv"><b class="num">${eur(model.months[i])}</b>${mSplit(i)}</span>` : '<b class="none">—</b>'),
   };
@@ -115,7 +117,7 @@ function page(ctx, route, casa) {
     ${d.head}
     <div class="card chartcard">
       <div class="readout">
-        <div><span class="label">${cap(MONTHS[sel])} ${year}${d.readSub ? ' · ' + d.readSub : ''}</span><b class="num">${d.fmt(sel)}</b>${d.readSplit}</div>
+        <div><span class="label">${cap(MONTHS[sel])} ${year}${d.readSub ? ' · ' + d.readSub : ''}</span><b class="num"${d.readStyle}>${d.fmt(sel)}</b>${d.readSplit}</div>
         <button data-act="open" data-v="${sel}">Ver mês ›</button>
       </div>
       <div class="chart" role="img" aria-label="${d.chartName} por mês em ${year}">
