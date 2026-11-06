@@ -43,12 +43,21 @@ const errorFrom = (uid, ms = 20000) => new Promise((resolve, reject) => {
 const DENIED = 'Sem permissão para aceder aos dados. Volta a entrar na conta.';
 
 async function main() {
+  // Only on this computer and only with a test account: these tests erase the account's data.
+  let email = '', password = '';
+  try { ({ email, password } = JSON.parse(decodeURIComponent(location.hash.slice(1)))); } catch { /* refused below */ }
+  history.replaceState(null, '', location.pathname);
+  const localHost = ['localhost', '127.0.0.1'].includes(location.hostname);
+  if (!localHost || typeof email !== 'string' || !email.endsWith('@financas.test')) {
+    const why = 'Recusado: estes testes apagam os dados da conta; só correm em localhost com uma conta @financas.test.';
+    logEl.textContent = why;
+    failed.push({ name: 'setup', error: why });
+    return;
+  }
   ({ db } = await import('../../js/firebase.js'));
   ({ login, logout, reauth, currentEmail } = await import('../../js/account.js'));
   ({ createFirestoreStore } = await import('../../js/store-firestore.js'));
   ({ CASES, waitFor } = await import('../contract/store-contract.js'));
-  const { email, password } = JSON.parse(decodeURIComponent(location.hash.slice(1)));
-  history.replaceState(null, '', location.pathname);
   const user = await login(email, password);
   const uid = user.uid;
 
@@ -74,6 +83,28 @@ async function main() {
     });
     store.stop();
   }
+
+  await check('the profiles list is confirmed by the server', async () => {
+    const store = createFirestoreStore(db, uid, () => {});
+    try { await waitFor(store, s => s.ready && s.profilesConfirmed === true, 20000); }
+    finally { store.stop(); }
+  });
+
+  await check('replaceAll writes nothing when a later batch cannot be built', async () => {
+    const store = createFirestoreStore(db, uid, () => {});
+    try {
+      await waitFor(store, s => s.ready, 20000);
+      await store.replaceAll({ profiles: [], categories: [], moves: [] });
+      await waitFor(store, s => !s.profiles.length && !s.categories.length && !s.moves.length && !s.pending, 20000);
+      const profiles = Array.from({ length: 460 }, (_, i) => ({ id: `p${i}`, name: `P${i}` }));
+      const bad = { id: 'a/b', profileId: 'p0', type: 'out', cents: 1, categoryId: 'x', date: '2026-11-06', note: '', createdAt: 1 };
+      let failedImport = false;
+      try { await store.replaceAll({ profiles, categories: [], moves: [bad] }); } catch { failedImport = true; }
+      assert.ok(failedImport);
+      await new Promise(r => setTimeout(r, 1000));
+      assert.equal(store.getState().profiles.length, 0);
+    } finally { store.stop(); }
+  });
 
   await check('replaceAll refuses to import offline', async () => {
     const store = createFirestoreStore(db, uid, () => {});

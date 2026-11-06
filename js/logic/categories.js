@@ -27,6 +27,15 @@ export function validateCategory(draft, categories, editingId = null) {
   return null;
 }
 
+// Profile names follow the same rules (used by the first profile and the categories screen).
+export function validateProfileName(name, profiles, editingId = null) {
+  const n = String(name ?? '').trim();
+  if (!n) return 'Escreve um nome.';
+  if ([...n].length > 30) return 'O nome pode ter no máximo 30 caracteres.';
+  if (profiles.some(p => p.id !== editingId && norm(p.name) === norm(n))) return 'Já existe um perfil com esse nome.';
+  return null;
+}
+
 export function deletionPlan(catId, categories, moves) {
   const cat = categories.find(c => c.id === catId);
   const sameType = categories.filter(c => c.type === cat.type);

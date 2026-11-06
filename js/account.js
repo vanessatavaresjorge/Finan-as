@@ -2,7 +2,8 @@ import {
   onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail,
   EmailAuthProvider, reauthenticateWithCredential,
 } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js';
-import { auth } from './firebase.js';
+import { terminate, clearIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
+import { auth, db } from './firebase.js';
 import { authMessage } from './logic/messages.js';
 
 const fail = code => { throw new Error(authMessage(code)); };
@@ -21,6 +22,19 @@ export async function login(email, password) {
 
 export function logout() {
   return wrap(signOut(auth));
+}
+
+// Terminar sessão on this device: sign out, then delete the household data kept in this
+// device's Firestore cache and reload, so a fresh Firestore instance starts empty.
+export async function logoutAndWipe() {
+  await logout();
+  try {
+    await terminate(db);
+    await clearIndexedDbPersistence(db);
+  } catch {
+    // Another open tab may still use the cache; the sign-out itself is done.
+  }
+  location.reload();
 }
 
 export async function resetPassword(email) {

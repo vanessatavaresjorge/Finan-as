@@ -38,3 +38,12 @@ test('sortCategories', () => {
   const mixed = [cats[1], cats[2], cats[0]];
   assert.deepEqual(sortCategories(mixed, 'out').map(c => c.id), ['carro','lazer']);
 });
+test('profile names', async () => {
+  const { validateProfileName } = await import('../js/logic/categories.js');
+  const profiles = [{id:'a', name:'Ana'}];
+  assert.equal(validateProfileName('  ', profiles), 'Escreve um nome.');
+  assert.equal(validateProfileName('x'.repeat(31), profiles), 'O nome pode ter no máximo 30 caracteres.');
+  assert.equal(validateProfileName(' ana ', profiles), 'Já existe um perfil com esse nome.');
+  assert.equal(validateProfileName('Ana', profiles, 'a'), null);
+  assert.equal(validateProfileName('Rui', profiles), null);
+});

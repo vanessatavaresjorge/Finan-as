@@ -86,7 +86,17 @@ try {
   await waitFor(chrome, `document.body.textContent.includes('❔') && document.body.textContent.includes('Sem categoria')`);
   assert.deepEqual(await chrome.pageErrors(), []);
 
+  // ---- Negative month (Perfil B, 4 months ago): no "incluindo" part ----
+  const negYm = addMonths(ym, -4);
+  const B4 = monthModel({ ...data, ym: negYm, view: 'b' }).totals;
+  assert.ok(B4.saved < 0 && B4.inv > 0, 'o perfil B gasta mais do que entrou e tem poupança neste mês');
+  await chrome.goto(`${server.url}/?demo=1&unlock=b&t=4#/mes/${negYm}`);
+  await waitFor(chrome, `!!document.querySelector('.savecard p')`);
+  assert.equal(nb(await chrome.eval(text('.savecard p'))), nb(`Gastaste mais ${formatEur(-B4.saved)} do que entrou.`));
+
   // ---- Empty future month ----
+  await chrome.goto(`${server.url}/?demo=1&unlock=a&t=5#/mes/${ym}`);
+  await waitFor(chrome, `!!document.querySelector('.big')`);
   const future = addMonths(ym, 3);
   await chrome.eval(`location.hash = '#/mes/${future}'`);
   await waitFor(chrome, `document.body.textContent.includes('Ainda não há movimentos neste mês. Toca em + para registar o primeiro.')`);

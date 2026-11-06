@@ -28,6 +28,8 @@ export function render(ctx, root, profileId) {
       if (wait.blocked) { pad.setBlocked(wait.waitSeconds); return null; }
       if (await verifyPin(pin, profileOf(ctx, profileId))) {
         pad.freeze();
+        // Trocar perfil was tapped during the check: never open the abandoned profile.
+        if (!pad.el.isConnected) return null;
         ctx.device.setLock(profileId, registerSuccess());
         ctx.unlock(profileId);
         return null;

@@ -184,6 +184,8 @@ input { font:inherit; color:inherit; }
 [hidden] { display:none !important; }
 .screen { flex:1; display:flex; flex-direction:column; min-height:0; }
 .btn.danger { background:var(--danger); }
+/* Plain cover while the app is hidden, so the app switcher shows no data. */
+.cover { position:fixed; inset:0; background:var(--bg); z-index:20; }
 .toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 12px); transform:translateX(-50%); width:calc(100% - 32px); max-width:440px; z-index:10; padding:12px 14px; border-radius:var(--r); background:var(--text); color:#fff; font-size:15px; line-height:1.35; text-align:center; box-shadow:0 6px 16px rgba(0,0,0,.2); }
 
 /* Login, first profile, forgotten code */

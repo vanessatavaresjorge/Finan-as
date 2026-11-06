@@ -35,6 +35,8 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
   const seen = { profiles: false, categories: false, moves: false };
   const pendingIn = { profiles: false, categories: false, moves: false };
   let categoriesFromServer = false;
+  // True once the server has sent the profiles list (an empty local cache proves nothing).
+  let profilesFromServer = false;
   let seedWanted = false;
   let nextLocalOrder = 0;
   // Ids added here that no snapshot has shown yet, so an update right after an add works.
@@ -47,6 +49,7 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
     moves: clone(data.moves),
     pending: COLS.some(c => pendingIn[c]),
     ready: COLS.every(c => seen[c]),
+    profilesConfirmed: profilesFromServer,
   });
   const notify = () => { const s = snapshot(); for (const fn of [...subs]) fn(s); };
 
@@ -55,16 +58,20 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
     if (!exists(name, id)) throw new Error(GONE);
   };
 
-  // Commits every chunk right away (not one after the other), so offline each chunk
-  // still applies to the local cache at once. Resolves when all are committed.
+  // Builds every chunk first, so an error while building commits nothing. Then commits
+  // them all right away (not one after the other), so offline each chunk still applies to
+  // the local cache at once. Resolves when all are committed.
   const commitChunks = ops => {
-    const commits = [];
-    for (let i = 0; i < ops.length; i += CHUNK) {
-      const batch = writeBatch(db);
-      for (const op of ops.slice(i, i + CHUNK)) op(batch);
-      commits.push(batch.commit());
-    }
-    return Promise.all(commits);
+    let batches;
+    try {
+      batches = [];
+      for (let i = 0; i < ops.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        for (const op of ops.slice(i, i + CHUNK)) op(batch);
+        batches.push(batch);
+      }
+    } catch (e) { return Promise.reject(e); }
+    return Promise.all(batches.map(b => b.commit()));
   };
 
   // Seeds only when the server confirms the categories are empty: an empty local
@@ -81,6 +88,7 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
     for (const d of snap.docs) created[name].delete(d.id);
     seen[name] = true;
     pendingIn[name] = snap.metadata.hasPendingWrites;
+    if (name === 'profiles' && !snap.metadata.fromCache) profilesFromServer = true;
     if (name === 'categories') {
       categoriesFromServer = !snap.metadata.fromCache;
       maybeSeed();

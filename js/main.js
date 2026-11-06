@@ -105,7 +105,12 @@ function renderLoadFailed(root) {
     </div></div>`);
   bindActions(root, {
     retry: () => location.reload(),
-    logout: () => (S.account ? S.account.logout().catch(e => showError(e.message)) : location.reload()),
+    logout: () => {
+      S.device?.setLastProfile(null);
+      // Signs out, clears this device's copy of the data and reloads the page.
+      if (S.account) S.account.logoutAndWipe().catch(e => showError(e.message));
+      else location.reload();
+    },
   });
 }
 
@@ -151,6 +156,17 @@ function unlock(profileId) {
 
 function onState(state) {
   if (!state.ready) return;
+  // No profiles in the local cache only (offline): never offer to create the first profile, which
+  // would add a profile to an account that already has some. Wait for the server; the load timer
+  // shows the load-failed message. (The memory store has no such flag.)
+  if (!state.profiles.length && state.profilesConfirmed === false && S.stage !== 'first-profile') {
+    if (S.stage === 'loading' || S.stage === 'load-failed') return;
+    S.stage = 'loading';
+    S.profileId = null;
+    renderStage();
+    startLoadTimer();
+    return;
+  }
   clearTimeout(S.loadTimer);
   if (S.stage === 'app') {
     if (!state.profiles.some(p => p.id === S.profileId)) { S.profileId = null; decideStage(state); return; }
@@ -169,14 +185,27 @@ function onState(state) {
 
 // Back after more than a minute in another app or with the screen off: lock again.
 // Open sheets and forms close; the route stays, so unlocking returns to it.
+// While hidden in the app, a plain cover hides the data from the app switcher.
 function onVisibility() {
-  if (document.visibilityState === 'hidden') { S.hiddenAt = Date.now(); return; }
+  if (document.visibilityState === 'hidden') {
+    S.hiddenAt = Date.now();
+    if (S.stage === 'app' && !document.querySelector('body > .cover')) {
+      const cover = document.createElement('div');
+      cover.className = 'cover';
+      cover.setAttribute('aria-hidden', 'true');
+      document.body.append(cover);
+    }
+    return;
+  }
   const hiddenAt = S.hiddenAt;
   S.hiddenAt = null;
-  if (S.stage !== 'app' || !shouldRelock(hiddenAt, Date.now())) return;
-  document.activeElement?.blur?.();
-  for (const el of document.querySelectorAll('.shade')) el.remove();
-  openLock(S.profileId);
+  if (S.stage === 'app' && shouldRelock(hiddenAt, Date.now())) {
+    document.activeElement?.blur?.();
+    for (const el of document.querySelectorAll('.shade')) el.remove();
+    openLock(S.profileId);
+  }
+  // The lock screen (or the app, after a short absence) is in place: drop the cover.
+  for (const el of document.querySelectorAll('body > .cover')) el.remove();
 }
 
 // ---------- App shell: screen, + button, tabs ----------
@@ -259,9 +288,13 @@ async function boot() {
 
   if (DEMO) {
     S.device = createDeviceState();
-    if (params.get('stall') === '1') { // tests: data that never arrives
-      const empty = { profiles: [], categories: [], moves: [], pending: false, ready: false };
-      useStore({ subscribe: fn => { fn(empty); return () => {}; }, getState: () => empty });
+    const stall = params.get('stall');
+    if (stall === '1' || stall === 'cache') {
+      // tests: data that never arrives (1), or an empty local cache the server has not confirmed (cache)
+      let state = { profiles: [], categories: [], moves: [], pending: false, ready: stall === 'cache', profilesConfirmed: false };
+      const subs = new Set();
+      window.__stub = { confirm() { state = { ...state, profilesConfirmed: true }; for (const fn of subs) fn(state); } };
+      useStore({ subscribe: fn => { subs.add(fn); fn(state); return () => subs.delete(fn); }, getState: () => state });
       startLoadTimer();
       return;
     }

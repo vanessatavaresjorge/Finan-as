@@ -92,6 +92,17 @@ try {
   assert.equal(await chrome.eval(`getComputedStyle(document.querySelector('.pad button')).touchAction`), 'manipulation');
   await chrome.screenshot(`${SHOTS}/lock-screen.png`, PHONE);
 
+  // Trocar perfil while the right code is being checked: the abandoned profile stays locked
+  await chrome.eval(`(() => {
+    for (let i = 0; i < 6; i++) document.querySelector('.pad button[data-v="1"]').click();
+    document.querySelector('.lockacts button[data-act="switch"]').click();
+  })()`);
+  await waitFor(chrome, `!!document.querySelector('.profs')`);
+  await new Promise(r => setTimeout(r, 1500));
+  assert.equal(await chrome.eval(`!!document.querySelector('.tabs')`), false, 'não abre o perfil abandonado');
+  assert.equal(await chrome.eval(`!!document.querySelector('.profs')`), true);
+  await pickProfile('Perfil A');
+
   // ---- Review Focus 5: a profile without code asks to create one ----
   await chrome.eval(`__demo.store.updateProfile('b', { pinHash: null, pinSalt: null, pinIter: null })`);
   await chrome.click('.lockacts button[data-act="switch"]');
@@ -119,9 +130,16 @@ try {
     document.dispatchEvent(new Event('visibilitychange')); })()`;
   await chrome.eval(`location.hash = '#/ano/2026'`);
   await waitFor(chrome, `document.querySelector('.tabs button.on')?.textContent === 'Ano'`);
+  const cover = `(() => { const c = document.querySelector('body > .cover'); if (!c) return null;
+    const r = c.getBoundingClientRect(); const s = getComputedStyle(c);
+    return [r.width === innerWidth && r.height === innerHeight, s.backgroundColor, Number(s.zIndex) > 10, c.textContent]; })()`;
   await chrome.eval(hide);
+  // app switcher: a plain cream cover with no data hides the screen
+  assert.deepEqual(await chrome.eval(cover), [true, 'rgb(247, 242, 234)', true, '']);
+  await chrome.screenshot(`${SHOTS}/lock-cover.png`, PHONE);
   await chrome.eval(show(30000));
   assert.equal(await chrome.eval(`!!document.querySelector('.tabs')`), true, 'menos de 1 minuto: não bloqueia');
+  assert.equal(await chrome.eval(cover), null, 'a capa sai ao voltar');
   await chrome.eval(`import('/js/ui/dialog.js').then(m => { window.__ans = m.confirmSheet({ message: 'Apagar este movimento?', ok: 'Apagar', danger: true }); })`);
   await chrome.eval(`Date.now = window.__realNow`);
   await chrome.eval(hide);
@@ -130,6 +148,7 @@ try {
   assert.equal(await chrome.eval(text('.lock h1')), 'Perfil B');
   assert.equal(await chrome.eval(`document.querySelectorAll('.shade').length`), 0);
   assert.equal(await chrome.eval(`window.__ans`), false, 'a folha aberta fecha com "não"');
+  assert.equal(await chrome.eval(cover), null, 'o bloqueio substitui a capa');
   await chrome.eval(`Date.now = window.__realNow`);
   await typePin('222222');
   await waitFor(chrome, `!!document.querySelector('.tabs')`);
@@ -196,7 +215,14 @@ try {
     m.renderFirst({ store: __first, unlock: id => { window.__firstId = id; } }, root);
   })()`);
   await chrome.click('#t-first form button[type="submit"]');
-  assert.equal(await chrome.eval(text('#t-first .error')), 'Escreve o nome do perfil.');
+  assert.equal(await chrome.eval(text('#t-first .error')), 'Escreve um nome.');
+  // same rules as the categories screen: a name already taken (on the other device) is refused
+  await chrome.eval(`__first.addProfile({ name: 'Ana', pinHash: null, pinSalt: null, pinIter: null })`);
+  await chrome.type('#t-first input', ' ana ');
+  await chrome.click('#t-first form button[type="submit"]');
+  assert.equal(await chrome.eval(text('#t-first .error')), 'Já existe um perfil com esse nome.');
+  await chrome.eval(`(() => { const s = __first.getState(); __first.replaceAll({ profiles: [], categories: s.categories, moves: [] }); })()`);
+  await chrome.eval(`document.querySelector('#t-first input').value = ''`);
   await chrome.type('#t-first input', 'Ana');
   await chrome.click('#t-first form button[type="submit"]');
   await waitFor(chrome, `(document.querySelector('#t-first .lock .sub')?.textContent ?? '') === 'Cria um código de 6 algarismos'`);
@@ -212,6 +238,18 @@ try {
   assert.deepEqual(await chrome.eval(`[...document.querySelectorAll('.lock button')].map(b => b.textContent.trim())`),
     ['Tentar de novo', 'Terminar sessão']);
   await chrome.screenshot(`${SHOTS}/lock-loadfail.png`, PHONE);
+  // Terminar sessão here also forgets the last profile of this device
+  await chrome.eval(`localStorage.setItem('fin.lastProfile', JSON.stringify('a'))`);
+  await chrome.click('.lock [data-act="logout"]');
+  await waitFor(chrome, `localStorage.getItem('fin.lastProfile') === null`);
+
+  // ---- Offline with an empty local cache: never offer to create the first profile ----
+  await chrome.goto(`${server.url}/?demo=1&stall=cache&loadms=300`);
+  await waitFor(chrome, `(document.querySelector('.lock .sub')?.textContent ?? '') === 'Não foi possível carregar os dados. Verifica a ligação à internet.'`);
+  assert.equal(await chrome.eval(`document.body.textContent.includes('Criar o primeiro perfil')`), false);
+  // the server then confirms there are no profiles: now the first profile is asked for
+  await chrome.eval(`__stub.confirm()`);
+  await waitFor(chrome, `(document.querySelector('.lock h1')?.textContent ?? '') === 'Criar o primeiro perfil'`);
 
   assert.deepEqual(chrome.pageErrors(), []);
   console.log('ok   lock');

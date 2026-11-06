@@ -294,6 +294,24 @@ try {
   await waitFor(chrome, `!!document.querySelector('.profs')`);
   assert.deepEqual(await chrome.eval(`[...document.querySelectorAll('.profs .prof')].map(b => b.textContent.trim().slice(1))`), ['Perfil Z']);
 
+  // ---- Terminar sessão (fake account): forgets the last profile, then wipes the local data ----
+  await chrome.eval(`(async () => {
+    const m = await import('/js/ui/categories.js');
+    const root = document.createElement('main');
+    root.className = 'screen'; root.id = 't-out';
+    document.getElementById('app').replaceChildren(root);
+    window.__out = [];
+    m.render({ store: __demo.store, profileId: 'z', demo: false, showError: msg => __out.push(['error', msg]),
+      device: { setLastProfile: id => __out.push(['last', id]) },
+      account: { currentEmail: () => 'casa@example.com', logout: async () => __out.push('logout'),
+        logoutAndWipe: async () => __out.push('wipe') } }, root);
+  })()`);
+  await chrome.click('#t-out [data-act="logout"]');
+  await waitFor(chrome, `!!document.querySelector('.shade [data-act="sheet-ok"]')`);
+  await chrome.click('.shade [data-act="sheet-ok"]');
+  await waitFor(chrome, `__out.length >= 2`);
+  assert.deepEqual(await chrome.eval(`__out`), [['last', null], 'wipe']);
+
   assert.deepEqual(chrome.pageErrors(), []);
   console.log('ok   categories');
   code = 0;

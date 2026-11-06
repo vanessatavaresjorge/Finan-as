@@ -1,7 +1,7 @@
 // Categories screen (route categorias): Saídas and Entradas, profiles, backup, code change, sign-out.
 // Sheets live in #app (outside the screen), so a store update never closes them. While a keypad
 // is shown in the screen (Mudar código, + Novo perfil), store updates do not re-render it.
-import { deletionPlan, sortCategories } from '../logic/categories.js';
+import { deletionPlan, sortCategories, validateProfileName } from '../logic/categories.js';
 import { buildBackup, parseBackup, backupFileName, INVALID_BACKUP } from '../backup.js';
 import { hashPin, verifyPin, lockoutState, registerFailure, registerSuccess, MAX_FAILS } from '../pin.js';
 import { openCategorySheet } from './catsheet.js';
@@ -16,17 +16,8 @@ let importing = false;
 const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
 
 const CANCEL = '<button class="forgot" data-act="cancel">Cancelar</button>';
-const norm = s => String(s).trim().toLocaleLowerCase('pt-PT');
 const initial = name => Array.from(String(name).trim())[0]?.toUpperCase() ?? '?';
 const toast = (ctx, msg) => ctx.showError?.(msg);
-
-export function validateProfileName(name, profiles, editingId = null) {
-  const n = String(name ?? '').trim();
-  if (!n) return 'Escreve um nome.';
-  if ([...n].length > 30) return 'O nome pode ter no máximo 30 caracteres.';
-  if (profiles.some(p => p.id !== editingId && norm(p.name) === norm(n))) return 'Já existe um perfil com esse nome.';
-  return null;
-}
 
 function catSection(categories, type, title) {
   return `<div class="sect"><h3>${title}</h3><div class="card" style="padding:0 14px">
@@ -317,8 +308,9 @@ async function logout(ctx) {
   const ok = await confirmSheet({ message: 'Terminar sessão neste aparelho?', ok: 'Terminar sessão' });
   if (!ok) return;
   try {
-    await ctx.account.logout();
     ctx.device.setLastProfile(null);
+    // Signs out, clears this device's copy of the data and reloads the page.
+    await ctx.account.logoutAndWipe();
   } catch (e) {
     toast(ctx, e?.message || 'Não foi possível terminar a sessão. Tenta outra vez.');
   }

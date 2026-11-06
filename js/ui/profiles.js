@@ -1,5 +1,6 @@
 // Profile picker ("Quem está a usar?") and creation of the first profile of the account.
 import { hashPin } from '../pin.js';
+import { validateProfileName } from '../logic/categories.js';
 import { askNewPin } from './pinpad.js';
 import { esc, mount, bindActions } from './dom.js';
 
@@ -27,12 +28,19 @@ export function renderFirst(ctx, root) {
     </form>
   </div>`);
   const form = root.querySelector('form');
+  const err = form.querySelector('.error');
+  form.elements.pname.addEventListener('input', () => { err.textContent = ''; });
   form.addEventListener('submit', async e => {
     e.preventDefault();
+    // Same rules as the categories screen (a profile may have been created on the other device).
+    const problem = validateProfileName(form.elements.pname.value, ctx.store.getState().profiles);
+    if (problem) { err.textContent = problem; return; }
     const name = form.elements.pname.value.trim();
-    if (!name) { form.querySelector('.error').textContent = 'Escreve o nome do perfil.'; return; }
     const pin = await askNewPin(root, { title: name });
+    if (!root.isConnected) return;
     try {
+      const again = validateProfileName(name, ctx.store.getState().profiles);
+      if (again) throw new Error(again);
       const id = ctx.store.addProfile({ name, ...(await hashPin(pin)) });
       ctx.store.seedDefaults();
       ctx.unlock(id);

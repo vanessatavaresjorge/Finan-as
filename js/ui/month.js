@@ -28,7 +28,7 @@ function saveCard(t, split) {
   return `<div class="card savecard">
     <div class="hd"><span class="label">Taxa de poupança${split ? ' da casa' : ''}</span><b class="num ${t.rate < 0 ? 'neg' : ''}">${formatPct(t.rate)}</b></div>
     <div class="meter"><i style="width:${width}%"></i></div>
-    ${split ? rows : `<p${t.rate < 0 ? ' style="color:var(--danger)"' : ''}>${phrase}${t.inv > 0 ? `, incluindo ${eur(t.inv)} em categorias de poupança` : ''}.</p>`}
+    ${split ? rows : `<p${t.rate < 0 ? ' style="color:var(--danger)"' : ''}>${phrase}${t.saved >= 0 && t.inv > 0 ? `, incluindo ${eur(t.inv)} em categorias de poupança` : ''}.</p>`}
   </div>`;
 }
 
