@@ -9,11 +9,17 @@ export function confirmSheet({ message, ok, danger = false }) {
       <button class="btn${danger ? ' danger' : ''}" data-act="sheet-ok">${esc(ok)}</button>
       <button class="btn plain" data-act="sheet-cancel">Cancelar</button>
     </div></div>`).firstElementChild;
+    let settled = false;
     const done = value => {
+      if (settled) return;
+      settled = true;
+      observer.disconnect();
       document.removeEventListener('keydown', onKey);
       shade.remove();
       resolve(value);
     };
+    // If the screen is rebuilt under the sheet (relock, sign-out), it counts as Cancelar.
+    const observer = new MutationObserver(() => { if (!shade.isConnected) done(false); });
     const onKey = e => { if (e.key === 'Escape') done(false); };
     shade.addEventListener('click', e => {
       e.stopPropagation();
@@ -24,5 +30,6 @@ export function confirmSheet({ message, ok, danger = false }) {
     });
     document.addEventListener('keydown', onKey);
     host.append(shade);
+    observer.observe(host, { childList: true });
   });
 }

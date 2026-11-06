@@ -4,13 +4,18 @@ import { parseRoute, routeHash } from './logic/route.js';
 import { createDeviceState } from './device-state.js';
 import { createMemoryStore } from './store-memory.js';
 import { demoData } from './demo-data.js';
-import { hashPin } from './pin.js';
+import { hashPin, shouldRelock } from './pin.js';
 import { esc, h, mount, bindActions } from './ui/dom.js';
+import * as loginScreen from './ui/login.js';
+import * as profilesScreen from './ui/profiles.js';
+import * as lockScreen from './ui/lock.js';
 
 const app = document.getElementById('app');
 const params = new URLSearchParams(location.search);
 const DEMO = ['localhost', '127.0.0.1'].includes(location.hostname) && params.get('demo') === '1';
 const DEMO_PIN = '111111';
+// How long to wait for the data before offering Tentar de novo (demo tests may shorten it).
+const LOAD_MS = DEMO && Number(params.get('loadms')) > 0 ? Number(params.get('loadms')) : 15000;
 
 // Placeholder screens until Tasks 10-14 replace them. Each screen: render(ctx, root), optional keepOnUpdate.
 const placeholder = title => ({
@@ -31,7 +36,7 @@ const SCREENS = {
 const TAB_OF = { mes: 'mes', cat: 'mes', entradas: 'mes', ano: 'ano', categorias: 'categorias' };
 
 const S = {
-  stage: 'loading', // loading | login | first-profile | pick | lock | app
+  stage: 'loading', // loading | load-failed | login | first-profile | pick | lock | app
   store: null,
   unsubscribe: null,
   device: null,
@@ -42,6 +47,9 @@ const S = {
   lastCasa: false,
   screen: null,
   shell: null,
+  stageKey: null, // what the login/profile/lock screen shown depends on (re-render when it changes)
+  loadTimer: 0,
+  hiddenAt: null,
 };
 
 // ---------- Messages ----------
@@ -55,31 +63,86 @@ function showError(message) {
   toastTimer = setTimeout(() => el.remove(), 5000);
 }
 
-// ---------- Before the app: login, profiles, lock (Task 10 replaces these placeholders) ----------
-const STAGE_TEXT = {
-  loading: ['A carregar…', ''],
-  login: ['Entrar', 'Conta da casa'],
-  'first-profile': ['Criar o primeiro perfil', ''],
-  pick: ['Quem está a usar?', ''],
-  lock: ['Bloqueado', 'Introduz o teu código'],
-};
+// ---------- Before the app: login, profiles, lock ----------
+function stageKey(state) {
+  if (!state) return null;
+  if (S.stage === 'pick') return JSON.stringify(state.profiles.map(p => [p.id, p.name]));
+  if (S.stage === 'lock') {
+    const p = state.profiles.find(x => x.id === S.profileId);
+    return JSON.stringify([!!p, p?.name, lockScreen.hasPin(p), state.profiles.length > 1]);
+  }
+  return null;
+}
+
+function stageCtx() {
+  return {
+    store: S.store, device: S.device, account: S.account, demo: DEMO, showError,
+    unlock, openLock, pick: showPicker,
+  };
+}
+
+// Every stage gets a fresh root, so listeners never pile up.
 function renderStage() {
   S.shell = null;
   S.screen = null;
-  const [title, sub] = STAGE_TEXT[S.stage];
-  mount(app, `<div class="lock"><h1>${esc(title)}</h1><div class="sub">${esc(sub)}</div></div>`);
+  const root = document.createElement('main');
+  root.className = 'screen';
+  app.replaceChildren(root);
+  S.stageKey = stageKey(S.store?.getState());
+  const ctx = stageCtx();
+  if (S.stage === 'login') loginScreen.render(ctx, root);
+  else if (S.stage === 'first-profile') profilesScreen.renderFirst(ctx, root);
+  else if (S.stage === 'pick') profilesScreen.renderPicker(ctx, root);
+  else if (S.stage === 'lock') lockScreen.render(ctx, root, S.profileId);
+  else if (S.stage === 'load-failed') renderLoadFailed(root);
+  else mount(root, '<div class="lock"><h1>A carregar…</h1><div class="sub"></div></div>');
+}
+
+function renderLoadFailed(root) {
+  mount(root, `<div class="lock"><h1>Finanças</h1>
+    <div class="sub err">Não foi possível carregar os dados. Verifica a ligação à internet.</div>
+    <div class="authform">
+      <button class="btn" data-act="retry">Tentar de novo</button>
+      <button class="btn plain" data-act="logout">Terminar sessão</button>
+    </div></div>`);
+  bindActions(root, {
+    retry: () => location.reload(),
+    logout: () => (S.account ? S.account.logout().catch(e => showError(e.message)) : location.reload()),
+  });
+}
+
+function startLoadTimer() {
+  clearTimeout(S.loadTimer);
+  S.loadTimer = setTimeout(() => {
+    if (S.stage !== 'loading') return;
+    S.stage = 'load-failed';
+    renderStage();
+  }, LOAD_MS);
+}
+
+function showPicker() {
+  S.stage = 'pick';
+  S.profileId = null;
+  renderStage();
+}
+
+function openLock(profileId) {
+  S.stage = 'lock';
+  S.profileId = profileId;
+  renderStage();
 }
 
 function decideStage(state) {
   const exists = id => id && state.profiles.some(p => p.id === id);
   const unlockId = DEMO ? params.get('unlock') : null;
-  if (!state.profiles.length) S.stage = 'first-profile';
+  if (!state.profiles.length) { S.stage = 'first-profile'; S.profileId = null; }
   else if (exists(unlockId)) return unlock(unlockId);
   else if (exists(S.device.lastProfile())) { S.stage = 'lock'; S.profileId = S.device.lastProfile(); }
-  else S.stage = 'pick';
+  else { S.stage = 'pick'; S.profileId = null; }
   renderStage();
 }
 
+// Opens the app on the route that was open (or asked for) before the lock.
 function unlock(profileId) {
   S.profileId = profileId;
   S.device.setLastProfile(profileId);
@@ -90,12 +153,32 @@ function unlock(profileId) {
 
 function onState(state) {
   if (!state.ready) return;
+  clearTimeout(S.loadTimer);
   if (S.stage === 'app') {
     if (!state.profiles.some(p => p.id === S.profileId)) { S.profileId = null; decideStage(state); return; }
     if (!S.screen?.keepOnUpdate) rerender();
-  } else if (S.stage === 'loading' || S.stage === 'first-profile') {
+  } else if (S.stage === 'loading' || S.stage === 'load-failed') {
     decideStage(state);
+  } else if (S.stage === 'first-profile') {
+    if (state.profiles.length) decideStage(state);
+  } else if (S.stage === 'pick' || S.stage === 'lock') {
+    // The profile being opened may disappear or lose its code on another device.
+    if (!state.profiles.length) { S.stage = 'first-profile'; S.profileId = null; renderStage(); }
+    else if (S.stage === 'lock' && !state.profiles.some(p => p.id === S.profileId)) showPicker();
+    else if (stageKey(state) !== S.stageKey) renderStage();
   }
+}
+
+// Back after more than a minute in another app or with the screen off: lock again.
+// Open sheets and forms close; the route stays, so unlocking returns to it.
+function onVisibility() {
+  if (document.visibilityState === 'hidden') { S.hiddenAt = Date.now(); return; }
+  const hiddenAt = S.hiddenAt;
+  S.hiddenAt = null;
+  if (S.stage !== 'app' || !shouldRelock(hiddenAt, Date.now())) return;
+  document.activeElement?.blur?.();
+  for (const el of document.querySelectorAll('.shade')) el.remove();
+  openLock(S.profileId);
 }
 
 // ---------- App shell: screen, + button, tabs ----------
@@ -162,15 +245,6 @@ function remember(route) {
 }
 
 // ---------- Boot ----------
-function memoryStorage() {
-  const m = new Map();
-  return {
-    getItem: k => (m.has(k) ? m.get(k) : null),
-    setItem: (k, v) => { m.set(k, String(v)); },
-    removeItem: k => { m.delete(k); },
-  };
-}
-
 function useStore(store) {
   S.unsubscribe?.();
   S.store?.stop?.();
@@ -181,11 +255,18 @@ function useStore(store) {
 async function boot() {
   navigator.storage?.persist?.().catch(() => {});
   window.addEventListener('hashchange', onRoute);
+  document.addEventListener('visibilitychange', onVisibility);
   remember(S.route);
   renderStage();
 
   if (DEMO) {
-    S.device = createDeviceState(memoryStorage());
+    S.device = createDeviceState();
+    if (params.get('stall') === '1') { // tests: data that never arrives
+      const empty = { profiles: [], categories: [], moves: [], pending: false, ready: false };
+      useStore({ subscribe: fn => { fn(empty); return () => {}; }, getState: () => empty });
+      startLoadTimer();
+      return;
+    }
     const data = demoData(todayISO());
     for (const p of data.profiles) Object.assign(p, await hashPin(DEMO_PIN));
     const store = createMemoryStore(data, showError);
@@ -201,6 +282,7 @@ async function boot() {
   S.account = account;
   account.onUser(user => {
     S.profileId = null;
+    clearTimeout(S.loadTimer);
     if (!user) {
       useStore(null);
       S.stage = 'login';
@@ -209,6 +291,7 @@ async function boot() {
     }
     S.stage = 'loading';
     renderStage();
+    startLoadTimer();
     useStore(createFirestoreStore(db, user.uid, showError));
   });
 }
