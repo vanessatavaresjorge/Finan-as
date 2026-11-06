@@ -1,1 +1,1 @@
-{"name":"financas","private":true,"type":"module","scripts":{"test":"node --test tests/","test:ui":"node tests/ui/run-all.mjs"}}
+{"name":"financas","private":true,"type":"module","scripts":{"test":"node --test tests/","test:ui":"node tests/ui/run-all.mjs","bump":"node tools/bump-version.mjs"}}

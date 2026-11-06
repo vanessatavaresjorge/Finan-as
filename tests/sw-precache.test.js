@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { computeVersion, currentVersion } from '../tools/bump-version.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -30,4 +31,10 @@ test('sw.js never touches Firestore or Auth traffic', () => {
   const src = readFileSync(path.join(root, 'sw.js'), 'utf8');
   assert.match(src, /req\.method !== 'GET'\) return/);
   assert.doesNotMatch(src, /firestore\.googleapis|identitytoolkit|securetoken/);
+});
+
+test('sw.js VERSION matches the app files', () => {
+  const src = readFileSync(path.join(root, 'sw.js'), 'utf8');
+  assert.equal(currentVersion(src), computeVersion(src),
+    'sw.js VERSION is out of date: run node tools/bump-version.mjs (npm run bump)');
 });
