@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Teste do armazenamento Firestore</title>
+</head>
+<body>
+<pre id="log">A correr…</pre>
+<script type="module">
+// Dynamic imports so a missing or broken module is reported instead of hanging the run.
+let db, login, logout, reauth, currentEmail, createFirestoreStore, CASES, waitFor;
+
+const logEl = document.getElementById('log');
+const log = line => { logEl.textContent += '\n' + line; };
+const passed = [];
+const failed = [];
+
+function deepEq(a, b) {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  return ka.every(k => Object.hasOwn(b, k) && deepEq(a[k], b[k]));
+}
+const show = v => JSON.stringify(v);
+const assert = {
+  equal(a, b) { if (!Object.is(a, b)) throw new Error(`esperado ${show(b)}, obtido ${show(a)}`); },
+  deepEqual(a, b) { if (!deepEq(a, b)) throw new Error(`esperado ${show(b)}, obtido ${show(a)}`); },
+  ok(v) { if (!v) throw new Error(`esperado verdadeiro, obtido ${show(v)}`); },
+};
+
+async function check(name, fn) {
+  try { await fn(); passed.push(name); log('ok   ' + name); }
+  catch (e) { failed.push({ name, error: String(e?.message ?? e) }); log('FAIL ' + name + ': ' + (e?.message ?? e)); }
+}
+
+const errorFrom = (uid, ms = 20000) => new Promise((resolve, reject) => {
+  let store;
+  const timer = setTimeout(() => { store?.stop(); reject(new Error('a leitura não foi recusada')); }, ms);
+  store = createFirestoreStore(db, uid, msg => { clearTimeout(timer); store?.stop(); resolve(msg); });
+});
+const DENIED = 'Sem permissão para aceder aos dados. Volta a entrar na conta.';
+
+async function main() {
+  ({ db } = await import('../../js/firebase.js'));
+  ({ login, logout, reauth, currentEmail } = await import('../../js/account.js'));
+  ({ createFirestoreStore } = await import('../../js/store-firestore.js'));
+  ({ CASES, waitFor } = await import('../contract/store-contract.js'));
+  const { email, password } = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+  history.replaceState(null, '', location.pathname);
+  const user = await login(email, password);
+  const uid = user.uid;
+
+  await check('account: login and currentEmail', async () => {
+    assert.equal(currentEmail(), email);
+  });
+  await check('account: reauth accepts the signed-in email and refuses another', async () => {
+    await reauth(email, password);
+    let msg = null;
+    try { await reauth('outra@financas.test', password); } catch (e) { msg = e.message; }
+    assert.equal(msg, 'Email ou palavra-passe errados.');
+  });
+
+  for (const c of CASES) {
+    const errors = [];
+    const store = createFirestoreStore(db, uid, m => errors.push(m));
+    await check(c.name, async () => {
+      await waitFor(store, s => s.ready, 20000);
+      await store.replaceAll({ profiles: [], categories: [], moves: [] });
+      await waitFor(store, s => !s.profiles.length && !s.categories.length && !s.moves.length && !s.pending, 20000);
+      await c.run(store, assert);
+      if (errors.length) throw new Error('onError: ' + errors.join('; '));
+    });
+    store.stop();
+  }
+
+  await check('replaceAll refuses to import offline', async () => {
+    const store = createFirestoreStore(db, uid, () => {});
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+    let msg = null;
+    try { await store.replaceAll({ profiles: [], categories: [], moves: [] }); } catch (e) { msg = e.message; }
+    finally { delete navigator.onLine; store.stop(); }
+    assert.equal(msg, 'Precisas de internet para importar.');
+  });
+
+  await check('rules: reading another user\'s moves is denied', async () => {
+    assert.equal(await errorFrom('outro-uid'), DENIED);
+  });
+
+  // leave the test account empty
+  const cleaner = createFirestoreStore(db, uid, () => {});
+  await waitFor(cleaner, s => s.ready, 20000);
+  await cleaner.replaceAll({ profiles: [], categories: [], moves: [] });
+  cleaner.stop();
+
+  await logout();
+  await check('rules: after sign-out the own moves cannot be read', async () => {
+    assert.equal(currentEmail(), null);
+    assert.equal(await errorFrom(uid), DENIED);
+  });
+}
+
+main()
+  .catch(e => failed.push({ name: 'setup', error: String(e?.message ?? e) }))
+  .finally(() => fetch('/__result', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ passed, failed }),
+  }));
+</script>
+</body>
+</html>
