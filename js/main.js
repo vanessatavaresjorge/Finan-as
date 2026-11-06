@@ -12,6 +12,7 @@ import * as lockScreen from './ui/lock.js';
 import * as formScreen from './ui/form.js';
 import * as monthScreen from './ui/month.js';
 import * as yearScreen from './ui/year.js';
+import * as categoriesScreen from './ui/categories.js';
 
 const app = document.getElementById('app');
 const params = new URLSearchParams(location.search);
@@ -20,19 +21,13 @@ const DEMO_PIN = '111111';
 // How long to wait for the data before offering Tentar de novo (demo tests may shorten it).
 const LOAD_MS = DEMO && Number(params.get('loadms')) > 0 ? Number(params.get('loadms')) : 15000;
 
-// Placeholder screens until Tasks 10-14 replace them. Each screen: render(ctx, root), optional keepOnUpdate.
-const placeholder = title => ({
-  render(ctx, root) {
-    mount(root, `<div class="scroll"><div class="title">${esc(title)}</div>
-      <p class="label" style="margin-top:6px">${esc(ctx.route.name)} · ${esc(routeHash(ctx.route))}</p></div>`);
-  },
-});
+// Each screen: render(ctx, root), optional keepOnUpdate (store updates do not re-render it).
 const SCREENS = {
   mes: monthScreen,
   cat: monthScreen,
   entradas: monthScreen,
   ano: yearScreen,
-  categorias: placeholder('Categorias'),
+  categorias: categoriesScreen,
   registar: formScreen,
   editar: formScreen,
 };
@@ -207,7 +202,7 @@ function openTab(tab) {
 function makeCtx() {
   return {
     store: S.store, device: S.device, account: S.account, profileId: S.profileId,
-    route: S.route, go, rerender, demo: DEMO,
+    route: S.route, go, rerender, demo: DEMO, showError,
   };
 }
 

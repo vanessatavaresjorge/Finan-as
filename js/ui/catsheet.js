@@ -14,9 +14,9 @@ export function openCategorySheet(ctx, { type, category = null }) {
 
     const shade = h(`<div class="shade" data-act="sheet-cancel"><div class="sheet" role="dialog" aria-modal="true">
       <div class="title">${editing ? 'Editar categoria' : `Nova categoria de ${kind === 'out' ? 'saída' : 'entrada'}`}</div>
-      <div class="card namein"><span class="e">${icon}</span><input id="catname" placeholder="Nome" value="${esc(category?.name ?? '')}" maxlength="30" autocomplete="off"></div>
+      <div class="card namein"><span class="e">${esc(icon)}</span><input id="catname" placeholder="Nome" value="${esc(category?.name ?? '')}" maxlength="30" autocomplete="off"></div>
       <div class="label" style="margin-top:16px">Símbolo</div>
-      <div class="emojis">${ICONS.map(e => `<button type="button" class="${e === icon ? 'on' : ''}" data-act="icon" data-v="${e}">${e}</button>`).join('')}</div>
+      <div class="emojis">${ICONS.map(e => `<button type="button" class="${e === icon ? 'on' : ''}" data-act="icon" data-v="${esc(e)}">${esc(e)}</button>`).join('')}</div>
       ${kind === 'out' ? `<button type="button" class="card switch" data-act="toggle-sav" role="switch" aria-checked="${savings}"><span>Conta como poupança<small>Para investimentos ou dinheiro posto de parte. Continua a contar no que saiu, mas entra na taxa de poupança.</small></span><span class="tog ${savings ? 'on' : ''}"></span></button>` : ''}
       <div class="error" role="alert"></div>
       <button type="button" class="btn" data-act="sheet-save" style="margin-top:6px">Guardar</button>
