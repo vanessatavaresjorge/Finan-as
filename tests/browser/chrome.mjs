@@ -172,6 +172,43 @@ export async function launch() {
         const { data } = await page.send('Page.captureScreenshot', { format: 'png' });
         writeFileSync(file, Buffer.from(data, 'base64'));
       },
+      // Cuts or restores the page's network (navigator.onLine follows it).
+      async setOffline(offline) {
+        await page.send('Network.enable');
+        await page.send('Network.emulateNetworkConditions', {
+          offline, latency: 0, downloadThroughput: -1, uploadThroughput: -1,
+        });
+      },
+      // Lets the page call the runner: window[name](arg) returns a promise of fn(arg)'s result.
+      async expose(name, fn) {
+        await page.send('Runtime.addBinding', { name: `__bind_${name}` });
+        const install = `(() => {
+          const send = window[${JSON.stringify(`__bind_${name}`)}];
+          const waiting = window.__bindWaiting ??= new Map();
+          let n = 0;
+          window[${JSON.stringify(name)}] = arg => new Promise((resolve, reject) => {
+            const id = ${JSON.stringify(name)} + ':' + (++n);
+            waiting.set(id, { resolve, reject });
+            send(JSON.stringify({ id, arg }));
+          });
+        })()`;
+        await page.send('Page.addScriptToEvaluateOnNewDocument', { source: install });
+        page.on(async msg => {
+          if (msg.method !== 'Runtime.bindingCalled' || msg.params.name !== `__bind_${name}`) return;
+          const { id, arg } = JSON.parse(msg.params.payload);
+          let reply;
+          try { reply = { ok: true, value: await fn(arg) }; }
+          catch (e) { reply = { ok: false, error: String(e?.message ?? e) }; }
+          try {
+            await evaluate(`(() => {
+              const r = ${JSON.stringify(reply)};
+              const w = window.__bindWaiting.get(${JSON.stringify(id)});
+              window.__bindWaiting.delete(${JSON.stringify(id)});
+              if (r.ok) w.resolve(r.value); else w.reject(new Error(r.error));
+            })()`);
+          } catch { /* page navigated away */ }
+        });
+      },
       pageErrors: () => [...errors],
       close,
     };

@@ -84,7 +84,22 @@ async function main() {
     assert.equal(msg, 'Precisas de internet para importar.');
   });
 
-  await check('rules: reading another user\'s moves is denied', async () => {
+  await check('replaceAll says internet is needed when navigator.onLine is wrong', async () => {
+    const store = createFirestoreStore(db, uid, () => {});
+    await waitFor(store, s => s.ready, 20000);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true });
+    await window.setOffline(true);
+    let msg = null;
+    try { await store.replaceAll({ profiles: [], categories: [], moves: [] }); } catch (e) { msg = e.message; }
+    finally {
+      await window.setOffline(false);
+      delete navigator.onLine;
+      store.stop();
+    }
+    assert.equal(msg, 'Precisas de internet para importar.');
+  });
+
+  await check('rules: first read of another user\'s data is denied', async () => {
     assert.equal(await errorFrom('outro-uid'), DENIED);
   });
 

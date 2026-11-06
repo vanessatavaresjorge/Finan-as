@@ -41,7 +41,10 @@ export function startServer(port = 8642) {
 
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return; }
 
-    let rel = decodeURIComponent(url.pathname);
+    let rel;
+    try { rel = decodeURIComponent(url.pathname); } catch { res.writeHead(400).end('bad url'); return; }
+    // never serve dotfiles or dot-folders (e.g. tests/browser/.test-account.json, .git)
+    if (rel.split('/').some(seg => seg.startsWith('.'))) { res.writeHead(404).end('not found'); return; }
     if (rel.endsWith('/')) rel += 'index.html';
     const file = path.resolve(ROOT, '.' + rel);
     if (file !== ROOT && !file.startsWith(ROOT + path.sep)) { res.writeHead(403).end(); return; }

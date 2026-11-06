@@ -13,6 +13,7 @@ let server, chrome, code = 1;
 try {
   server = await startServer();
   chrome = await launch();
+  await chrome.expose('setOffline', offline => chrome.setOffline(offline));
   await chrome.goto(`${server.url}/tests/browser/store.html#${hash}`);
   const result = await Promise.race([
     server.results,

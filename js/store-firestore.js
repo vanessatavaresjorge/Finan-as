@@ -11,6 +11,10 @@ import { authMessage } from './logic/messages.js';
 const GONE = 'Este registo já não existe.';
 const PICK = 'Escolhe para onde passar os movimentos.';
 const OFFLINE = 'Precisas de internet para importar.';
+const STALLED = 'A importação não terminou por falta de ligação. Confirma os dados quando a internet voltar.';
+const IMPORT_COMMIT_MS = 30000;
+// Codes Firestore gives when the server cannot be reached (navigator.onLine can be wrong).
+const NO_CONNECTION = new Set(['unavailable', 'failed-precondition']);
 const COLS = ['profiles', 'categories', 'moves'];
 const CHUNK = 450;
 const clone = x => structuredClone(x);
@@ -34,7 +38,7 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
   let seedWanted = false;
   let nextLocalOrder = 0;
   // Ids added here that no snapshot has shown yet, so an update right after an add works.
-  const created = new Set();
+  const created = { profiles: new Set(), categories: new Set(), moves: new Set() };
   const subs = new Set();
 
   const snapshot = () => ({
@@ -46,8 +50,9 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
   });
   const notify = () => { const s = snapshot(); for (const fn of [...subs]) fn(s); };
 
+  const exists = (name, id) => created[name].has(id) || data[name].some(x => x.id === id);
   const must = (name, id) => {
-    if (!created.has(id) && !data[name].some(x => x.id === id)) throw new Error(GONE);
+    if (!exists(name, id)) throw new Error(GONE);
   };
 
   // Commits every chunk right away (not one after the other), so offline each chunk
@@ -73,7 +78,7 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
 
   const unsubs = COLS.map(name => onSnapshot(col(name), { includeMetadataChanges: true }, snap => {
     data[name] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-    for (const d of snap.docs) created.delete(d.id);
+    for (const d of snap.docs) created[name].delete(d.id);
     seen[name] = true;
     pendingIn[name] = snap.metadata.hasPendingWrites;
     if (name === 'categories') {
@@ -85,7 +90,7 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
 
   const add = (name, fields) => {
     const r = doc(col(name));
-    created.add(r.id);
+    created[name].add(r.id);
     setDoc(r, fieldsOf(fields)).catch(report);
     return r.id;
   };
@@ -109,7 +114,7 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
     updateMove(id, patch) { update('moves', id, patch); },
     deleteMove(id) {
       must('moves', id);
-      created.delete(id);
+      created.moves.delete(id);
       deleteDoc(ref('moves', id)).catch(report);
     },
 
@@ -124,12 +129,12 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
       const using = data.moves.filter(m => m.categoryId === id);
       if (targetId == null) {
         if (using.length) throw new Error(PICK);
-      } else if (targetId === id || !data.categories.some(c => c.id === targetId)) {
+      } else if (targetId === id || !exists('categories', targetId)) {
         throw new Error(PICK);
       }
       const ops = using.map(m => b => b.update(ref('moves', m.id), { categoryId: targetId }));
       ops.push(b => b.delete(ref('categories', id)));
-      created.delete(id);
+      created.categories.delete(id);
       commitChunks(ops).catch(report);
     },
 
@@ -145,7 +150,7 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
 
     async replaceAll(input) {
       if (!navigator.onLine) throw new Error(OFFLINE);
-      const asError = e => new Error(authMessage(e?.code));
+      const asError = e => new Error(NO_CONNECTION.has(e?.code) ? OFFLINE : authMessage(e?.code));
       let server;
       try {
         server = await Promise.all(COLS.map(name => getDocsFromServer(col(name))));
@@ -165,9 +170,18 @@ export function createFirestoreStore(db, uid, onError = () => {}) {
         for (const id of old) if (!keep.has(id)) ops.push(b => b.delete(ref(name, id)));
         for (const item of next[name]) ops.push(b => b.set(ref(name, item.id), fieldsOf(item)));
       }
+      // If the connection drops after the reads, the commits wait for it to return:
+      // stop waiting after a while (they still apply locally and sync later).
+      const committing = commitChunks(ops);
+      let timer;
+      const stalled = new Promise((_, reject) => {
+        timer = setTimeout(() => { committing.catch(report); reject(new Error(STALLED)); }, IMPORT_COMMIT_MS);
+      });
       try {
-        await commitChunks(ops);
-      } catch (e) { throw asError(e); }
+        await Promise.race([committing, stalled]);
+      } catch (e) {
+        throw e.message === STALLED ? e : new Error(authMessage(e?.code));
+      } finally { clearTimeout(timer); }
     },
 
     stop() {
