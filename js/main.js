@@ -9,6 +9,7 @@ import { esc, h, mount, bindActions } from './ui/dom.js';
 import * as loginScreen from './ui/login.js';
 import * as profilesScreen from './ui/profiles.js';
 import * as lockScreen from './ui/lock.js';
+import * as formScreen from './ui/form.js';
 
 const app = document.getElementById('app');
 const params = new URLSearchParams(location.search);
@@ -30,8 +31,8 @@ const SCREENS = {
   entradas: placeholder('Entradas do mês'),
   ano: placeholder('Ano'),
   categorias: placeholder('Categorias'),
-  registar: placeholder('Registar movimento'),
-  editar: placeholder('Editar movimento'),
+  registar: formScreen,
+  editar: formScreen,
 };
 const TAB_OF = { mes: 'mes', cat: 'mes', entradas: 'mes', ano: 'ano', categorias: 'categorias' };
 
