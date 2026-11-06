@@ -11,6 +11,7 @@ import * as profilesScreen from './ui/profiles.js';
 import * as lockScreen from './ui/lock.js';
 import * as formScreen from './ui/form.js';
 import * as monthScreen from './ui/month.js';
+import * as yearScreen from './ui/year.js';
 
 const app = document.getElementById('app');
 const params = new URLSearchParams(location.search);
@@ -30,7 +31,7 @@ const SCREENS = {
   mes: monthScreen,
   cat: monthScreen,
   entradas: monthScreen,
-  ano: placeholder('Ano'),
+  ano: yearScreen,
   categorias: placeholder('Categorias'),
   registar: formScreen,
   editar: formScreen,
