@@ -40,7 +40,8 @@ export async function verifyPin(pin, rec) {
 
 export function lockoutState(rec, now) {
   const until = rec?.until ?? 0;
-  if (until > now) return { blocked: true, waitSeconds: Math.ceil((until - now) / 1000) };
+  // A clock moved backwards must not make the wait longer than WAIT_MS.
+  if (until > now) return { blocked: true, waitSeconds: Math.ceil(Math.min(until - now, WAIT_MS) / 1000) };
   return { blocked: false, waitSeconds: 0 };
 }
 

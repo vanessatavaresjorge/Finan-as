@@ -47,3 +47,19 @@ test('device state survives a new instance', () => {
   d.setLastProfile(null); assert.equal(d.lastProfile(), null);
   m.set('fin.lock.b', '{oops'); assert.equal(d.lock('b'), null);
 });
+test('lockout wait never exceeds 30 s when the clock moved backwards', () => {
+  const rec = registerFailure({fails:4, until:0}, 1_000_000);
+  // The clock went back one hour after the lock was stored.
+  const s = lockoutState(rec, 1_000_000 - 3_600_000);
+  assert.equal(s.blocked, true);
+  assert.equal(s.waitSeconds, 30);
+});
+test('device state: a storage that throws never blocks', () => {
+  const boom = () => { throw new Error('QuotaExceededError'); };
+  const d = createDeviceState({getItem:boom, setItem:boom, removeItem:boom});
+  assert.doesNotThrow(() => d.setLastProfile('a'));
+  assert.doesNotThrow(() => d.setLastProfile(null));
+  assert.doesNotThrow(() => d.setLock('a', {fails:0, until:0}));
+  assert.equal(d.lastProfile(), null);
+  assert.equal(d.lock('a'), null);
+});

@@ -7,6 +7,7 @@ const MESSAGES = {
   'auth/network-request-failed': 'Sem ligação à internet.',
   'permission-denied': 'Sem permissão para aceder aos dados. Volta a entrar na conta.',
   'unavailable': 'Sem ligação ao servidor. As alterações são enviadas quando a ligação voltar.',
+  'not-found': 'Este registo já não existe.',
   'auth/missing-email': 'Escreve o teu email.',
 };
 

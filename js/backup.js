@@ -14,6 +14,8 @@ export function buildBackup({ profiles, categories, moves }, now = new Date()) {
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isStr = (v) => typeof v === 'string' && v.length > 0;
+// Ids become Firestore document ids: no '/', '.', '..' or reserved '__x__' names.
+const isId = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) && !/^__.*__$/.test(v);
 
 function isRealDate(s) {
   if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
@@ -29,7 +31,7 @@ function validate(raw) {
   const profiles = [];
   const profileIds = new Set();
   for (const p of raw.profiles) {
-    if (!isObj(p) || !isStr(p.id) || !isStr(p.name) || profileIds.has(p.id)) return null;
+    if (!isObj(p) || !isId(p.id) || !isStr(p.name) || profileIds.has(p.id)) return null;
     profileIds.add(p.id);
     profiles.push({ id: p.id, name: p.name });
   }
@@ -37,7 +39,7 @@ function validate(raw) {
   const categories = [];
   const catType = new Map();
   for (const c of raw.categories) {
-    if (!isObj(c) || !isStr(c.id) || !isStr(c.name) || !isStr(c.icon) || catType.has(c.id)) return null;
+    if (!isObj(c) || !isId(c.id) || !isStr(c.name) || !isStr(c.icon) || catType.has(c.id)) return null;
     if (c.type !== 'out' && c.type !== 'in') return null;
     if (typeof c.savings !== 'boolean' || !Number.isFinite(c.order)) return null;
     catType.set(c.id, c.type);
@@ -49,8 +51,8 @@ function validate(raw) {
   const moves = [];
   const moveIds = new Set();
   for (const m of raw.moves) {
-    if (!isObj(m) || !isStr(m.id) || moveIds.has(m.id)) return null;
-    if (!profileIds.has(m.profileId) || !isStr(m.categoryId)) return null;
+    if (!isObj(m) || !isId(m.id) || moveIds.has(m.id)) return null;
+    if (!profileIds.has(m.profileId) || !isId(m.categoryId)) return null;
     // A move may reference a deleted category (shown as "Sem categoria"); only check type when known.
     if (catType.has(m.categoryId) && m.type !== catType.get(m.categoryId)) return null;
     if (m.type !== 'out' && m.type !== 'in') return null;

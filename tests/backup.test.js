@@ -55,3 +55,37 @@ test('auth messages', () => {
   assert.equal(authMessage('auth/missing-email'), 'Escreve o teu email.');
   assert.equal(authMessage('xyz'), 'Ocorreu um erro inesperado. Tenta de novo.');
 });
+test('auth messages: record gone', () => {
+  assert.equal(authMessage('not-found'), 'Este registo já não existe.');
+});
+test('refuses ids Firestore cannot store', () => {
+  const good = buildBackup(data);
+  const m0 = good.moves[0];
+  const c0 = good.categories[0];
+  const badIds = ['a/b', '.', '..', '__x__', 'x'.repeat(65), 'a b', 'é'];
+  for (const id of badIds) {
+    const cases = [
+      {...good, profiles: [...good.profiles, {id, name:'Outro'}]},
+      {...good, categories: [...good.categories, {...c0, id, name:'Outra'}]},
+      {...good, moves: [...good.moves, {...m0, id}]},
+      {...good, moves: [...good.moves, {...m0, id:'novo', categoryId:id}]},
+    ];
+    for (const c of cases) assert.deepEqual(parseBackup(JSON.stringify(c)), {ok:false, error:INVALID_BACKUP}, id);
+  }
+});
+test('accepts the id formats the app creates', async () => {
+  const { demoData } = await import('../js/demo-data.js');
+  const { DEFAULT_CATEGORIES } = await import('../js/logic/categories.js');
+  const demo = demoData('2026-11-06');
+  const ids = ['a', 'via-verde', 'demo-0001', crypto.randomUUID(), 'Xy3kP9qL2mN8vB4cR6tW', 'x'.repeat(64), 'a_b'];
+  const good = buildBackup(data);
+  for (const id of ids) {
+    const r = parseBackup(JSON.stringify({...good,
+      profiles: [...good.profiles, {id: `p${id}`.slice(0, 64), name:'Outro'}],
+      categories: [...good.categories, {...good.categories[0], id, name:'Outra'}],
+      moves: [...good.moves, {...good.moves.find(m => m.categoryId === good.categories[0].id), id, categoryId:id}]}));
+    assert.equal(r.ok, true, id);
+  }
+  assert.equal(parseBackup(JSON.stringify(buildBackup(demo))).ok, true);
+  assert.equal(parseBackup(JSON.stringify(buildBackup({...data, categories: DEFAULT_CATEGORIES}))).ok, true);
+});
