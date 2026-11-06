@@ -10,6 +10,7 @@ import * as loginScreen from './ui/login.js';
 import * as profilesScreen from './ui/profiles.js';
 import * as lockScreen from './ui/lock.js';
 import * as formScreen from './ui/form.js';
+import * as monthScreen from './ui/month.js';
 
 const app = document.getElementById('app');
 const params = new URLSearchParams(location.search);
@@ -26,9 +27,9 @@ const placeholder = title => ({
   },
 });
 const SCREENS = {
-  mes: placeholder('Mês'),
-  cat: placeholder('Categoria do mês'),
-  entradas: placeholder('Entradas do mês'),
+  mes: monthScreen,
+  cat: monthScreen,
+  entradas: monthScreen,
   ano: placeholder('Ano'),
   categorias: placeholder('Categorias'),
   registar: formScreen,
