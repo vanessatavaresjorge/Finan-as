@@ -21,8 +21,8 @@ test('refuses invalid files', () => {
   const withMove = (patch) => JSON.stringify({...good, moves:[{...m0, ...patch}]});
   const bad = [ 'not json', 'null', '[]', JSON.stringify({...good, format:2}),
     withMove({cents:0}), withMove({cents:1.5}), withMove({cents:1000000000}), withMove({date:'2026-13-01'}),
-    withMove({date:'2026-02-30'}), withMove({categoryId:'nope'}), withMove({profileId:'nope'}),
-    withMove({type:'out'}), withMove({note:5}), withMove({createdAt:'x'}), withMove({id:''}),
+    withMove({date:'2026-02-30'}), withMove({profileId:'nope'}),
+    withMove({type: m0.type === 'out' ? 'in' : 'out'}), withMove({categoryId:''}), withMove({note:5}), withMove({createdAt:'x'}), withMove({id:''}),
     JSON.stringify({...good, moves:[m0, m0]}),
     JSON.stringify({...good, categories: good.categories.filter(c => c.type === 'out')}),
     JSON.stringify({...good, categories: [...good.categories, {...good.categories[0]}]}),
@@ -30,6 +30,12 @@ test('refuses invalid files', () => {
     JSON.stringify({...good, profiles: [good.profiles[0], good.profiles[0]]}),
     JSON.stringify({...good, profiles: [{id:'a', name:''}]}) ];
   for (const t of bad) assert.deepEqual(parseBackup(t), {ok:false, error:INVALID_BACKUP});
+});
+test('move with deleted category is kept', () => {
+  const good = buildBackup(data);
+  const orphan = {...good.moves[0], id:'orf', categoryId:'apagada'};
+  const r = parseBackup(JSON.stringify({...good, moves:[...good.moves, orphan]}));
+  assert.equal(r.ok, true); assert.deepEqual(r.data.moves.at(-1), orphan);
 });
 test('extra fields are dropped', () => {
   const good = buildBackup(data);

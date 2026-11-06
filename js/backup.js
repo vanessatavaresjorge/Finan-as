@@ -50,8 +50,10 @@ function validate(raw) {
   const moveIds = new Set();
   for (const m of raw.moves) {
     if (!isObj(m) || !isStr(m.id) || moveIds.has(m.id)) return null;
-    if (!profileIds.has(m.profileId) || !catType.has(m.categoryId)) return null;
-    if (m.type !== catType.get(m.categoryId)) return null;
+    if (!profileIds.has(m.profileId) || !isStr(m.categoryId)) return null;
+    // A move may reference a deleted category (shown as "Sem categoria"); only check type when known.
+    if (catType.has(m.categoryId) && m.type !== catType.get(m.categoryId)) return null;
+    if (m.type !== 'out' && m.type !== 'in') return null;
     if (!Number.isInteger(m.cents) || m.cents < 1 || m.cents > 999999999) return null;
     if (!isRealDate(m.date) || typeof m.note !== 'string' || !Number.isFinite(m.createdAt)) return null;
     moveIds.add(m.id);
