@@ -2,7 +2,7 @@
 // Sheets live in #app (outside the screen), so a store update never closes them. While a keypad
 // is shown in the screen (Mudar código, + Novo perfil), store updates do not re-render it.
 import { deletionPlan, sortCategories } from '../logic/categories.js';
-import { buildBackup, parseBackup, backupFileName } from '../backup.js';
+import { buildBackup, parseBackup, backupFileName, INVALID_BACKUP } from '../backup.js';
 import { hashPin, verifyPin, lockoutState, registerFailure, registerSuccess, MAX_FAILS } from '../pin.js';
 import { openCategorySheet } from './catsheet.js';
 import { confirmSheet } from './dialog.js';
@@ -11,6 +11,9 @@ import { esc, h, mount, bindActions } from './dom.js';
 
 // Live binding read by main.js: true while a keypad flow is on screen.
 export let keepOnUpdate = false;
+// True from choosing a file until the import ends: Importar is disabled and other attempts are ignored.
+let importing = false;
+const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
 
 const CANCEL = '<button class="forgot" data-act="cancel">Cancelar</button>';
 const norm = s => String(s).trim().toLocaleLowerCase('pt-PT');
@@ -45,7 +48,7 @@ function view(ctx) {
       <div class="catrow" style="border:0"><button class="addcat" data-act="newprof">+ Novo perfil</button></div></div></div>
     <div class="sect"><h3>Cópia de segurança e conta</h3>
       <button class="btn plain" data-act="export">Exportar cópia</button>
-      <button class="btn plain" data-act="import">Importar cópia</button>
+      <button class="btn plain" data-act="import"${importing ? ' disabled' : ''}>${importing ? 'A importar…' : 'Importar cópia'}</button>
       <input type="file" accept="application/json,.json" hidden>
       <button class="btn plain" data-act="code">Mudar código de ${esc(me?.name ?? '')}</button>
       ${ctx.demo ? '' : `<button class="btn plain" data-act="logout">Terminar sessão</button>
@@ -69,7 +72,7 @@ export function render(ctx, root) {
     renprof: el => renameProfile(ctx, el.dataset.v),
     newprof: () => newProfile(ctx, root),
     export: () => exportBackup(ctx),
-    import: () => fileInput.click(),
+    import: () => { if (!importing) fileInput.click(); },
     code: () => changeCode(ctx, root),
     logout: () => logout(ctx),
   });
@@ -255,7 +258,8 @@ async function exportBackup(ctx) {
   const name = backupFileName();
   const text = JSON.stringify(buildBackup(ctx.store.getState()), null, 2);
   const file = new File([text], name, { type: 'application/json' });
-  if (navigator.canShare?.({ files: [file] })) {
+  // Share sheet on the iPhone; the Mac (no touch) downloads the file, even if it could share.
+  if (navigator.maxTouchPoints > 0 && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file] });
     } catch (e) {
@@ -276,25 +280,35 @@ async function exportBackup(ctx) {
 async function importFile(ctx, input) {
   const file = input.files?.[0];
   input.value = ''; // the same file can be chosen again
-  if (!file) return;
-  let parsed;
+  if (!file || importing) return;
+  const showBusy = on => {
+    importing = on;
+    const btn = document.querySelector('main.screen [data-act="import"]');
+    if (btn) { btn.disabled = on; btn.textContent = on ? 'A importar…' : 'Importar cópia'; }
+  };
+  showBusy(true);
   try {
-    parsed = parseBackup(await file.text());
-  } catch {
-    parsed = parseBackup('');
-  }
-  if (!parsed.ok) { toast(ctx, parsed.error); return; }
-  const n = parsed.moveCount;
-  const ok = await confirmSheet({
-    message: `A cópia tem ${n} ${n === 1 ? 'movimento' : 'movimentos'}. Importar substitui todos os dados atuais, em todos os aparelhos.`,
-    ok: 'Importar', danger: true,
-  });
-  if (!ok) return;
-  try {
-    // If the open profile is not in the copy, main.js sends the user to the profile picker.
-    await ctx.store.replaceAll(parsed.data);
-  } catch (e) {
-    toast(ctx, e?.message || 'Não foi possível importar. Tenta outra vez.');
+    let parsed = null;
+    if (file.size <= MAX_BACKUP_BYTES) {
+      try { parsed = parseBackup(await file.text()); } catch { parsed = null; }
+    }
+    if (!parsed?.ok) { toast(ctx, INVALID_BACKUP); return; }
+    const n = parsed.moveCount;
+    const ok = await confirmSheet({
+      message: `A cópia tem ${n} ${n === 1 ? 'movimento' : 'movimentos'}. Importar substitui todos os dados atuais, em todos os aparelhos.`,
+      ok: 'Importar', danger: true,
+    });
+    if (!ok) return;
+    try {
+      // If the open profile is not in the copy, main.js sends the user to the profile picker.
+      await ctx.store.replaceAll(parsed.data);
+      toast(ctx, 'Cópia importada.');
+    } catch (e) {
+      toast(ctx, e?.message || 'Não foi possível importar. Tenta outra vez.');
+    }
+  } finally {
+    // The screen may have been re-rendered meanwhile, so the button is looked up again.
+    showBusy(false);
   }
 }
 

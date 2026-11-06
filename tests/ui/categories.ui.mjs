@@ -128,8 +128,10 @@ try {
   assert.equal(await chrome.eval(`document.querySelectorAll('.shade').length`), 0);
   assert.deepEqual(await chrome.eval(names('Entradas')), ['💼Salário']);
 
-  // ---- Export: download path (no share sheet) ----
-  await chrome.eval(`navigator.canShare = undefined; window.__dl = null;
+  // ---- Export: no touch screen (the Mac) downloads, even when the browser could share ----
+  assert.equal(await chrome.eval(`navigator.maxTouchPoints`), 0);
+  await chrome.eval(`navigator.canShare = () => true; window.__shared = 0;
+    navigator.share = async () => { window.__shared++; }; window.__dl = null;
     HTMLAnchorElement.prototype.click = function () {
       const name = this.download;
       fetch(this.href).then(r => r.text()).then(t => { window.__dl = { name, text: t }; });
@@ -137,6 +139,7 @@ try {
   await chrome.eval(`${btnText('Exportar cópia')}.click()`);
   await waitFor(chrome, `!!window.__dl`);
   const dl = await chrome.eval(`window.__dl`);
+  assert.equal(await chrome.eval(`window.__shared`), 0, 'no Mac não abre a folha de partilha');
   assert.match(dl.name, /^financas-copia-\d{4}-\d{2}-\d{2}\.json$/);
   assert.equal(dl.name, `financas-copia-${today}.json`);
   const exported = JSON.parse(dl.text);
@@ -159,8 +162,20 @@ try {
     `A cópia tem ${fresh.moves.length} movimentos. Importar substitui todos os dados atuais, em todos os aparelhos.`);
   assert.equal(await chrome.eval(text('.shade [data-act="sheet-ok"]')), 'Importar');
   await chrome.screenshot(`${SHOTS}/cats-import-confirm.png`, PHONE);
+  // a slow import: Importar is busy and a second file is ignored
+  await chrome.eval(`window.__realReplace = __demo.store.replaceAll; window.__release = null;
+    __demo.store.replaceAll = data => new Promise(r => { window.__release = r; }).then(() => window.__realReplace(data))`);
+  await chrome.eval(`document.querySelector('.toast')?.remove()`);
   await chrome.click('.shade [data-act="sheet-ok"]');
+  await waitFor(chrome, `!!window.__release`);
+  assert.deepEqual(await chrome.eval(`(b => [b.disabled, b.textContent])(document.querySelector('[data-act="import"]'))`), [true, 'A importar…']);
+  await chrome.setFile('input[type="file"]', goodFile);
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal(await chrome.eval(`document.querySelectorAll('.shade').length`), 0, 'outra importação é ignorada');
+  await chrome.eval(`window.__release(); __demo.store.replaceAll = window.__realReplace`);
   await waitFor(chrome, `!document.querySelector('.shade') && __demo.store.getState().moves.length === ${fresh.moves.length}`);
+  await waitFor(chrome, `document.querySelector('.toast')?.textContent === 'Cópia importada.'`);
+  assert.deepEqual(await chrome.eval(`(b => [b.disabled, b.textContent])(document.querySelector('[data-act="import"]'))`), [false, 'Importar cópia']);
   assert.deepEqual(await chrome.eval(names('Entradas')), ['💼Salário', '💶Outros'], 'as categorias voltam às da cópia');
   // pins of existing profiles are kept
   assert.equal(await chrome.eval(`__demo.store.getState().profiles.every(p => p.pinIter === 100000)`), true);
