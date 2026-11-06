@@ -273,6 +273,9 @@ async function boot() {
     return;
   }
 
+  // Installable app: keeps the app files so it opens without internet (never in demo mode).
+  navigator.serviceWorker?.register('sw.js').catch(() => {});
+
   S.device = createDeviceState();
   const [{ db }, account, { createFirestoreStore }] = await Promise.all([
     import('./firebase.js'), import('./account.js'), import('./store-firestore.js'),
