@@ -89,6 +89,22 @@ export const CASES = [
       await waitFor(store, s => !byId(s.categories, 'lazer'));
     } },
 
+  { name: 'deleteCategory refuses a target that is itself or does not exist',
+    run: async (store, assert) => {
+      store.seedDefaults();
+      await waitFor(store, s => s.categories.length === 10);
+      const p = store.addProfile({ name: 'Ana', pinHash: null, pinSalt: null, pinIter: null });
+      const id = store.addMove(mvFields(p, 'carro', 100));
+      await waitFor(store, s => byId(s.moves, id));
+      const thrown = fn => { try { fn(); } catch (e) { return e.message; } return null; };
+      const msg = 'Escolhe para onde passar os movimentos.';
+      assert.equal(thrown(() => store.deleteCategory('carro', 'carro')), msg);
+      assert.equal(thrown(() => store.deleteCategory('carro', 'nope')), msg);
+      const s = store.getState();
+      assert.ok(byId(s.categories, 'carro'));
+      assert.equal(byId(s.moves, id).categoryId, 'carro');
+    } },
+
   { name: 'addProfile and updateProfile rename',
     run: async (store, assert) => {
       const id = store.addProfile({ name: 'Ana', pinHash: 'h', pinSalt: 's', pinIter: 100000 });
@@ -102,7 +118,7 @@ export const CASES = [
   { name: 'replaceAll replaces data and keeps pin of profiles with the same id',
     run: async (store, assert) => {
       const keep = store.addProfile({ name: 'Ana', pinHash: 'h', pinSalt: 's', pinIter: 100000 });
-      store.addProfile({ name: 'Sai', pinHash: 'x', pinSalt: 'y', pinIter: 1 });
+      const gone = store.addProfile({ name: 'Sai', pinHash: 'x', pinSalt: 'y', pinIter: 1 });
       store.addCategory({ name: 'Velha', type: 'out', icon: '🚗', savings: false });
       await waitFor(store, s => s.profiles.length === 2 && s.categories.length === 1);
       const cats = [
@@ -114,7 +130,10 @@ export const CASES = [
       await store.replaceAll({
         profiles: [{ id: keep, name: 'Ana Nova' }, { id: 'novo', name: 'Rui' }],
         categories: cats, moves });
-      const s = await waitFor(store, st => st.moves.length === 2 && st.categories.length === 2 && st.profiles.length === 2);
+      const s = await waitFor(store, st => byId(st.profiles, 'novo') && !byId(st.profiles, gone)
+        && byId(st.profiles, keep)?.name === 'Ana Nova'
+        && st.categories.length === 2 && byId(st.categories, 'c1') && byId(st.categories, 'c2')
+        && st.moves.length === 2 && byId(st.moves, 'm1') && byId(st.moves, 'm2'));
       assert.deepEqual(s.categories, cats);
       assert.deepEqual(sortById(s.moves), moves);
       const p = byId(s.profiles, keep);

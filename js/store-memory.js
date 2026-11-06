@@ -55,9 +55,11 @@ export function createMemoryStore(initial = {}, onError = () => {}) {
     updateCategory(id, patch) { patchItem(categories, id, patch); },
     deleteCategory(id, targetId) {
       find(categories, id);
+      const pick = 'Escolhe para onde passar os movimentos.';
       if (targetId == null) {
-        if (moves.some(m => m.categoryId === id)) throw new Error('Escolhe para onde passar os movimentos.');
+        if (moves.some(m => m.categoryId === id)) throw new Error(pick);
       } else {
+        if (targetId === id || !categories.some(c => c.id === targetId)) throw new Error(pick);
         for (const m of moves) if (m.categoryId === id) m.categoryId = targetId;
       }
       categories = categories.filter(c => c.id !== id);
