@@ -32,7 +32,12 @@ try {
   assert.deepEqual((await chrome.eval(kpis)).map(nb),
     [formatEur(t.out), formatEur(t.inn), formatEur(t.left), formatPct(t.rate)].map(nb));
   assert.deepEqual(await chrome.eval(all('.kpis .kpi > .label')), ['Saiu', 'Entrou', 'Sobrou', 'Taxa de poupança']);
-  assert.match(await chrome.eval(`document.querySelector('.kpis .kpi p').textContent`), /^Poupaste .* dos .* que entraram/);
+  // compact KPI row; the savings phrase is a full-width line under it, fully readable
+  const kpiH = await chrome.eval(all('.kpis .kpi', 'e.getBoundingClientRect().height'));
+  assert.ok(kpiH.length === 4 && kpiH.every(h => h <= 110), `cartões altos: ${kpiH}`);
+  assert.match(await chrome.eval(`document.querySelector('.kpiphrase').textContent`), /^Poupaste .* dos .* que entraram/);
+  assert.equal(await chrome.eval(`(() => { const e = document.querySelector('.kpiphrase'); const r = e.getBoundingClientRect();
+    return getComputedStyle(e).display !== 'none' && r.height > 0 && r.bottom <= innerHeight && e.scrollWidth <= e.clientWidth; })()`), true);
   assert.ok(await chrome.eval(`!!document.querySelector('.kpis .meter i')`));
   // top bar: month navigation and the profile | Casa segment
   assert.equal(await chrome.eval(`document.querySelector('.wtop .title').textContent`), monthTitle(ym));
@@ -55,6 +60,24 @@ try {
   assert.equal(await chrome.eval(`document.querySelectorAll('table.movs tbody tr').length`), A.moves.length);
   assert.equal(await chrome.eval(`document.scrollingElement.scrollWidth <= innerWidth`), true);
   await chrome.screenshot(`${SHOTS}/wide-month.png`, { width: 1280, height: 800 });
+
+  // ---- Scroll memory: kept while filtering the same month, dropped after leaving the month ----
+  const scroller = `document.querySelector('.screen > .scroll')`;
+  await chrome.eval(`${scroller}.scrollTop = 120`);
+  await waitFor(chrome, `${scroller}.scrollTop === 120`);
+  await chrome.click(`.wcats [data-cat="combustivel"]`);
+  await waitFor(chrome, `location.hash === '#/mes/${ym}/cat/combustivel' && !!document.querySelector('.movfilter')`);
+  // same position (or the lowest one, when the filtered page is shorter)
+  assert.ok(await chrome.eval(`(e => Math.abs(e.scrollTop - Math.min(120, e.scrollHeight - e.clientHeight)) <= 1)(${scroller})`), 'o filtro mantém a posição');
+  await chrome.click('.movfilter .link');
+  await waitFor(chrome, `location.hash === '#/mes/${ym}' && !document.querySelector('.movfilter')`);
+  await chrome.eval(`${scroller}.scrollTop = 120`);
+  await waitFor(chrome, `${scroller}.scrollTop === 120`);
+  await chrome.eval(`location.hash = '#/ano/${ym.slice(0, 4)}'`);
+  await waitFor(chrome, `!!document.querySelector('.chartcard')`);
+  await chrome.eval(`location.hash = '#/mes/${ym}'`);
+  await waitFor(chrome, `!!document.querySelector('.kpis')`);
+  assert.equal(await chrome.eval(`${scroller}.scrollTop`), 0, 'depois do Ano o mês abre no topo');
 
   // ---- Filter: category row -> table filtered, chip and ‹ Voltar ----
   const sup = A.moves.filter(m => m.categoryId === 'supermercado');

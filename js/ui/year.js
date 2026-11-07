@@ -1,7 +1,7 @@
 // Year screen (route ano): spending or savings per month, chart, and the month-by-month list.
 import { formatEur, formatPct, todayISO, MONTHS } from '../logic/format.js';
 import { yearModel } from '../logic/stats.js';
-import { esc, mount, bindActions } from './dom.js';
+import { esc, mount, bindActions, viewSeg } from './dom.js';
 import { barChart, euroTick } from './chart.js';
 
 const eur = formatEur;
@@ -84,12 +84,9 @@ function page(ctx, route, casa) {
   const model = yearModel({ ...state, year, view, mode: route.mode, filter: ui.filter });
   const sel = ui.sel;
   const d = describe(model, route, casa, sel, outCats);
-  const me = state.profiles.find(p => p.id === ctx.profileId);
   const isSave = route.mode === 'poupanca';
 
-  const seg = state.profiles.length > 1
-    ? `<div class="seg vseg"><button class="${casa ? '' : 'on'}" data-act="view" data-v="me">${esc(me?.name ?? '')}</button><button class="${casa ? 'on' : ''}" data-act="view" data-v="casa">Casa</button></div>`
-    : '';
+  const seg = viewSeg(state.profiles, ctx.profileId, casa);
   return `<div class="scroll">
     ${state.pending ? '<div class="label sync" role="status">A sincronizar…</div>' : ''}
     ${seg}

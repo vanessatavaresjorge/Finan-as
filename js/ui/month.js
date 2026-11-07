@@ -1,7 +1,8 @@
 // Month screen (routes mes, cat, entradas): totals, savings rate, categories and movements.
-import { formatEur, formatPct, shortDate, monthTitle, addMonths } from '../logic/format.js';
+import { formatEur, formatPct, shortDate, monthTitle, addMonths, todayISO } from '../logic/format.js';
+import { parseRoute } from '../logic/route.js';
 import { monthModel, yearModel, categoryOf } from '../logic/stats.js';
-import { esc, mount, bindActions } from './dom.js';
+import { esc, mount, bindActions, viewSeg } from './dom.js';
 import { barChart, euroTick } from './chart.js';
 
 const eur = formatEur;
@@ -16,20 +17,26 @@ function moveRow(m) {
     <b class="num ${m.type === 'in' ? 'pos' : ''}">${m.type === 'in' ? '+' : '−'}${eur(m.cents)}</b></div></button>`;
 }
 
+// The sentence under the savings rate (base spec rules), shared by the phone and wide layouts.
+function savePhrase(t) {
+  if (t.rate === null) return { text: 'Sem entradas neste mês', negative: false };
+  if (t.saved < 0) return { text: `Gastaste mais ${eur(-t.saved)} do que entrou.`, negative: true };
+  const inv = t.inv > 0 ? `, incluindo ${eur(t.inv)} em categorias de poupança` : '';
+  return { text: `Poupaste ${eur(t.saved)} dos ${eur(t.inn)} que entraram${inv}.`, negative: false };
+}
+const meterWidth = t => Math.max(0, Math.min(1, t.rate ?? 0)) * 100;
+
 function saveCard(t, split) {
   const rows = split ? splitLine(split.map(p => ({ name: p.name, text: savedTxt(p) }))) : '';
+  const ph = savePhrase(t);
   if (t.rate === null) {
     return `<div class="card savecard"><div class="hd"><span class="label">Taxa de poupança${split ? ' da casa' : ''}</span><b class="num">—</b></div>
-      <div class="meter"><i style="width:0%"></i></div><p>Sem entradas neste mês</p>${rows}</div>`;
+      <div class="meter"><i style="width:0%"></i></div><p>${ph.text}</p>${rows}</div>`;
   }
-  const width = Math.max(0, Math.min(1, t.rate)) * 100;
-  const phrase = t.saved >= 0
-    ? `Poupaste ${eur(t.saved)} dos ${eur(t.inn)} que entraram`
-    : `Gastaste mais ${eur(-t.saved)} do que entrou`;
   return `<div class="card savecard">
     <div class="hd"><span class="label">Taxa de poupança${split ? ' da casa' : ''}</span><b class="num ${t.rate < 0 ? 'neg' : ''}">${formatPct(t.rate)}</b></div>
-    <div class="meter"><i style="width:${width}%"></i></div>
-    ${split ? rows : `<p${t.rate < 0 ? ' style="color:var(--danger)"' : ''}>${phrase}${t.saved >= 0 && t.inv > 0 ? `, incluindo ${eur(t.inv)} em categorias de poupança` : ''}.</p>`}
+    <div class="meter"><i style="width:${meterWidth(t)}%"></i></div>
+    ${split ? rows : `<p${ph.negative ? ' style="color:var(--danger)"' : ''}>${ph.text}</p>`}
   </div>`;
 }
 
@@ -47,10 +54,7 @@ function monthView(ctx, ym, casa) {
   const model = monthModel({ ...state, ym, view });
   const { totals: t, split } = model;
   const sp = fn => (split ? splitLine(split.map(p => ({ name: p.name, text: fn(p) }))) : '');
-  const me = state.profiles.find(p => p.id === ctx.profileId);
-  const seg = state.profiles.length > 1
-    ? `<div class="seg vseg"><button class="${casa ? '' : 'on'}" data-act="view" data-v="me">${esc(me?.name ?? '')}</button><button class="${casa ? 'on' : ''}" data-act="view" data-v="casa">Casa</button></div>`
-    : '';
+  const seg = viewSeg(state.profiles, ctx.profileId, casa);
   const noMoves = casa ? t.inn === 0 && t.out === 0 && !model.categories.length : !model.moves.length;
   let list;
   if (noMoves) {
@@ -79,25 +83,18 @@ function monthView(ctx, ym, casa) {
 
 // ---------- Wide window: dashboard with KPI cards, categories | year chart, movements table ----------
 
-function viewSeg(state, me, casa) {
-  return state.profiles.length > 1
-    ? `<div class="seg vseg"><button class="${casa ? '' : 'on'}" data-act="view" data-v="me">${esc(me?.name ?? '')}</button><button class="${casa ? 'on' : ''}" data-act="view" data-v="casa">Casa</button></div>`
-    : '';
+// Compact card: rate and meter (and, in Casa, each person's saving). The phrase goes under the row.
+function wideSaveKpi(t, split) {
+  return `<div class="card kpi"><span class="label">Taxa de poupança</span><b class="num${t.rate !== null && t.rate < 0 ? ' neg' : ''}">${formatPct(t.rate)}</b>
+    <div class="meter"><i style="width:${meterWidth(t)}%"></i></div>
+    ${split ? splitLine(split.map(p => ({ name: p.name, text: savedTxt(p) }))) : ''}</div>`;
 }
 
-function wideSaveKpi(t, split) {
-  const head = `<span class="label">Taxa de poupança</span>`;
-  if (t.rate === null) {
-    return `<div class="card kpi">${head}<b class="num">—</b><div class="meter"><i style="width:0%"></i></div>
-      <p>Sem entradas neste mês</p>${split ? splitLine(split.map(p => ({ name: p.name, text: savedTxt(p) }))) : ''}</div>`;
-  }
-  const width = Math.max(0, Math.min(1, t.rate)) * 100;
-  const phrase = t.saved >= 0
-    ? `Poupaste ${eur(t.saved)} dos ${eur(t.inn)} que entraram${t.inv > 0 ? `, incluindo ${eur(t.inv)} em categorias de poupança` : ''}.`
-    : `Gastaste mais ${eur(-t.saved)} do que entrou.`;
-  return `<div class="card kpi">${head}<b class="num${t.rate < 0 ? ' neg' : ''}">${formatPct(t.rate)}</b>
-    <div class="meter"><i style="width:${width}%"></i></div>
-    ${split ? splitLine(split.map(p => ({ name: p.name, text: savedTxt(p) }))) : `<p${t.saved < 0 ? ' class="neg"' : ''}>${phrase}</p>`}</div>`;
+// Full-width line under the KPI row. In Casa the per-person lines replace it, except with no income.
+function widePhrase(t, split) {
+  if (split && t.rate !== null) return '';
+  const ph = savePhrase(t);
+  return `<p class="kpiphrase${ph.negative ? ' neg' : ''}">${ph.text}</p>`;
 }
 
 function wideCatRow(c, casa, on) {
@@ -146,7 +143,6 @@ function wideView(ctx, route, casa) {
   const model = monthModel({ ...state, ym, view });
   const { totals: t, split } = model;
   const sp = fn => (split ? splitLine(split.map(p => ({ name: p.name, text: fn(p) }))) : '');
-  const me = state.profiles.find(p => p.id === ctx.profileId);
   const isIn = route.name === 'entradas';
   const catOn = route.name === 'cat' ? route.catId : null;
 
@@ -174,7 +170,7 @@ function wideView(ctx, route, casa) {
     ${state.pending ? '<div class="label sync" role="status">A sincronizar…</div>' : ''}
     <div class="wtop">
       <div class="monthnav"><button data-act="prev" aria-label="Mês anterior">‹</button><span class="title">${esc(monthTitle(ym))}</span><button data-act="next" aria-label="Mês seguinte">›</button></div>
-      ${viewSeg(state, me, casa)}
+      ${viewSeg(state.profiles, ctx.profileId, casa)}
     </div>
     <div class="kpis">
       <div class="card kpi"><span class="label">Saiu</span><b class="num">${eur(t.out)}</b>${sp(p => eur(p.out))}</div>
@@ -183,6 +179,7 @@ function wideView(ctx, route, casa) {
       <div class="card kpi"><span class="label">Sobrou</span><b class="num${t.left < 0 ? ' neg' : ''}">${eur(t.left)}</b>${sp(p => eur(p.left))}</div>
       ${wideSaveKpi(t, split)}
     </div>
+    ${widePhrase(t, split)}
     <div class="wmid">
       <div class="card wcats"><div class="ct">Categorias</div>${cats}</div>
       <div class="card wchart"><div class="ct">Saídas em ${year}</div>${chart}</div>
@@ -192,7 +189,13 @@ function wideView(ctx, route, casa) {
 }
 
 // Scroll position of the wide month, so filtering the table (a new route) does not jump to the top.
+// Only kept between mes/cat/entradas of the same month and view (the key), and while the register
+// or edit drawer is open over it. Leaving for any other screen clears it.
 let wideScroll = { key: null, top: 0 };
+const KEEPS_SCROLL = new Set(['mes', 'cat', 'entradas', 'registar', 'editar']);
+window.addEventListener('hashchange', () => {
+  if (!KEEPS_SCROLL.has(parseRoute(location.hash, todayISO()).name)) wideScroll = { key: null, top: 0 };
+});
 
 function detailView(ctx, route) {
   const state = ctx.store.getState();
@@ -246,7 +249,10 @@ function renderWide(ctx, root, route, casa) {
   const key = `${ctx.profileId}|${route.ym}|${casa}`;
   if (wideScroll.key === key) sc.scrollTop = wideScroll.top;
   wideScroll = { key, top: sc.scrollTop };
-  sc.addEventListener('scroll', () => { wideScroll = { key, top: sc.scrollTop }; }, { passive: true });
+  const save = () => { wideScroll = { key, top: sc.scrollTop }; };
+  sc.addEventListener('scroll', save, { passive: true });
+  // also on every click, before the action navigates (a scroll event may still be pending)
+  root.addEventListener('click', save, true);
   // With a filter, bring the table into view if it is below the window.
   const filter = root.querySelector('.movfilter');
   if (filter && filter.getBoundingClientRect().top > sc.getBoundingClientRect().bottom - 80) {

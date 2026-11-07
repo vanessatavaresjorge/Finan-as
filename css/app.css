@@ -236,8 +236,10 @@ input { font:inherit; color:inherit; }
 /* numbers are never cut: a bit smaller on the narrowest wide windows, and they wrap if still too long */
 .kpi > b { display:block; font-size:clamp(21px, 2vw, 26px); font-weight:600; line-height:1.15; font-variant-numeric:lining-nums proportional-nums; overflow-wrap:anywhere; }
 .kpi > b.in { color:var(--in); }
-.kpi > b.neg, .kpi p.neg { color:var(--danger); }
-.kpi p { font-size:13px; color:var(--muted); margin-top:8px; line-height:1.4; }
+.kpi > b.neg { color:var(--danger); }
+/* savings phrase: one muted line under the KPI row, so the cards stay compact */
+.kpiphrase { font-size:13px; color:var(--muted); line-height:1.4; margin:-6px 2px 0; }
+.kpiphrase.neg { color:var(--danger); }
 .kpi .meter { margin-top:10px; }
 button.kpi:hover, .wcats button.row:hover { background:#fbf7f0; }
 .kpi.on { box-shadow:inset 0 0 0 2px var(--accent); }
