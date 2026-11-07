@@ -57,12 +57,29 @@ try {
   await waitFor(chrome, `!!document.querySelector('.wyear .chartcard')`);
   assert.equal(await chrome.eval(`document.querySelectorAll('.wyear .fchips').length`), 0);
   assert.equal(await chrome.eval(`document.querySelectorAll('.cols i.negb').length`), B.months.filter(m => m && m.rate < 0).length);
-  assert.equal(await chrome.eval(`getComputedStyle(document.querySelector('.cols i.negb')).backgroundColor`), 'rgb(163, 54, 31)');
   assert.equal(nb(await chrome.eval(`document.querySelector('.wyear .kpis .kpi > b').textContent`)), nb(formatPct(B.rate)));
   await chrome.click(`.chartcard .cols [data-month="${neg}"]`);
   await waitFor(chrome, `document.querySelector('.cols button.sel').dataset.v === '${neg}'`);
   assert.equal(await chrome.eval(`getComputedStyle(document.querySelector('.readout b')).color`), 'rgb(163, 54, 31)');
+  // bars follow the base rule: selected olive (even if negative), the others dim
+  const bg = i => `getComputedStyle(document.querySelectorAll('.chartcard .cols button')[${i}].querySelector('i')).backgroundColor`;
+  assert.equal(await chrome.eval(bg(neg)), 'rgb(95, 107, 46)');
+  assert.equal(await chrome.eval(`!!document.querySelectorAll('.chartcard .cols button')[${neg}].querySelector('i.negb')`), true);
+  const other = B.months.findIndex((m, i) => i !== neg && m);
+  assert.equal(await chrome.eval(bg(other)), 'rgb(169, 155, 137)');
   await chrome.screenshot(`${SHOTS}/wide-year-poupanca.png`, { width: 1280, height: 800 });
+
+  // ---- 1440 x 900: the chart still fills its card ----
+  await chrome.setViewport(1440, 900);
+  await chrome.goto(`${server.url}/?demo=1&unlock=a&t=7#/ano/${year}`);
+  await waitFor(chrome, `!!document.querySelector('.wyear .chartcard')`);
+  const mid2 = await chrome.eval(rect('.wymid'));
+  const card2 = await chrome.eval(rect('.chartcard'));
+  const plot2 = await chrome.eval(rect('.chartcard .chart'));
+  const tall2 = await chrome.eval(`Math.max(...[...document.querySelectorAll('.chartcard .cols i')].map(i => i.getBoundingClientRect().height))`);
+  assert.ok(card2.height >= 0.6 * mid2.height, `1440: cartão ${card2.height} de ${mid2.height}`);
+  assert.ok(tall2 >= 0.5 * plot2.height, `1440: barra ${tall2} de ${plot2.height}`);
+  await chrome.setViewport(1280, 800);
 
   // ---- Casa still shows the split ----
   await chrome.goto(`${server.url}/?demo=1&unlock=a&t=3#/ano/${year}/casa`);
@@ -83,6 +100,12 @@ try {
   await chrome.eval(`document.querySelector('[data-act="editcat"]').click()`);
   await waitFor(chrome, `!!document.querySelector('.sheet.side')`);
   await chrome.eval(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
+  // Terminar sessão is brick, the other account actions stay olive
+  await chrome.goto(`${server.url}/?demo=1&unlock=a&signout=1&t=8#/categorias`);
+  await waitFor(chrome, `!!document.querySelector('[data-act="logout"]')`);
+  const col = a => `getComputedStyle(document.querySelector('.ccol [data-act="${a}"]')).color`;
+  assert.equal(await chrome.eval(col('logout')), 'rgb(163, 54, 31)');
+  for (const a of ['export', 'import', 'code']) assert.equal(await chrome.eval(col(a)), 'rgb(95, 107, 46)');
 
   // ---- Narrow: no wide class, unchanged structure ----
   await chrome.setViewport(390, 844);

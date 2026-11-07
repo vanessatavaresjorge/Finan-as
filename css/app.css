@@ -302,4 +302,4 @@ table.movs tr.none td { text-align:center; color:var(--muted); padding:22px 8px;
 .wide .ccol .sect:first-child { margin-top:14px; }
 .wide .ccol .sect + .sect { margin-top:14px; }
 .wide .ccol:last-child .sect:last-child .btn:last-of-type { border-bottom:0; }
-.wide .cols i.negb { background:var(--danger); }
+.wide .ccol .btn.plain[data-act="logout"] { color:var(--danger); }
