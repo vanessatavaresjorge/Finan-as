@@ -11,7 +11,7 @@ const HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 const STYLE = { header: 1, month: 2, number: 3, percent: 4 };
 
 // Characters XML 1.0 does not allow (control chars, lone surrogates, U+FFFE/U+FFFF) are dropped.
-const INVALID = /[^\t\n\r\x20-퟿-�\u{10000}-\u{10FFFF}]/gu;
+const INVALID = /[^\t\n\r\x20-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu;
 function esc(s) {
   return String(s).replace(INVALID, '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

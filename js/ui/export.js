@@ -4,6 +4,9 @@ import { exportData, exportFileName, validRange } from '../logic/export.js';
 import { buildXlsx } from '../xlsx.js';
 import { esc, mount, bindActions } from './dom.js';
 
+// Store updates do not re-render it: the chosen range stays (the download reads the data when clicked).
+export const keepOnUpdate = true;
+
 const MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 const ERR = 'O mês de início tem de ser antes do mês de fim.';

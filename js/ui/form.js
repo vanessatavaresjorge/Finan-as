@@ -17,7 +17,7 @@ export function render(ctx, root) {
   if (editing) {
     move = store.getState().moves.find(m => m.id === route.moveId);
     // a movement of another profile (or one that is gone) cannot be edited
-    if (!move || move.profileId !== ctx.profileId) { ctx.go({ name: 'mes', ym: todayISO().slice(0, 7), casa: false }); return; }
+    if (!move || move.profileId !== ctx.profileId) { ctx.replace({ name: 'mes', ym: todayISO().slice(0, 7), casa: false }); return; }
   }
 
   const f = move
@@ -69,6 +69,10 @@ export function render(ctx, root) {
   const clearError = () => { errBox.textContent = ''; };
   root.addEventListener('input', clearError);
 
+  // After saving or deleting: on a wide window the drawer closes over the screen behind it;
+  // on the phone the month of the movement opens.
+  const done = month => { if (!ctx.closeForm()) ctx.go(month); };
+
   async function save() {
     if (busy) return;
     const text = $('#amt').value;
@@ -90,7 +94,7 @@ export function render(ctx, root) {
       return;
     }
     unsubscribe();
-    ctx.go(monthOf(date));
+    done(monthOf(date));
   }
 
   async function del() {
@@ -106,7 +110,7 @@ export function render(ctx, root) {
       return;
     }
     unsubscribe();
-    ctx.go(monthOf(move.date));
+    done(monthOf(move.date));
   }
 
   async function newCat() {

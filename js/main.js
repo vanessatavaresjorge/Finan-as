@@ -54,8 +54,9 @@ const S = {
   shell: null,
   wide: isWide(),
   bgRoute: null, // last route that is not a form: shown behind the drawer on a wide window
-  formRoot: null,
-  drawerFromBg: false, // root of the open register/edit form, moved (not re-rendered) on resize
+  formRoot: null, // root of the open register/edit form, moved (not re-rendered) on resize
+  drawerFromBg: false, // true when the drawer was opened from the screen behind it in this session
+  closing: false, // the drawer is closing (a second Esc or Cancelar does nothing)
   stageKey: null, // what the login/profile/lock screen shown depends on (re-render when it changes)
   loadTimer: 0,
   hiddenAt: null,
@@ -266,7 +267,10 @@ function openTab(tab) {
 function makeCtx(route = S.route) {
   return {
     store: S.store, device: S.device, account: S.account, profileId: S.profileId,
-    route, go, rerender, demo: DEMO, showError, wide: S.wide,
+    route, go, replace, rerender, demo: DEMO, showError, wide: S.wide,
+    // Closes the drawer over the screen behind it (after saving or deleting); false when the form
+    // is not in a drawer (phone layout). Checked when called, so a resize after opening is fine.
+    closeForm: () => { if (!S.wide || !drawerOpen()) return false; cancelDrawer(); return true; },
     // Demo only: lets the UI test show Terminar sessão.
     showSignOut: DEMO && params.get('signout') === '1',
   };
@@ -326,13 +330,15 @@ function closeDrawer() {
 // Opened from the screen behind in this session: going back removes the form from the history, so
 // Back never reopens an empty drawer. Otherwise (bookmark, reload) the form entry is replaced.
 function cancelDrawer() {
+  if (S.closing || !drawerOpen()) return;
+  S.closing = true;
   if (S.drawerFromBg) history.back();
   else location.replace(routeHash(backgroundRoute()));
 }
 
 // Esc closes the drawer (a sheet open over it handles Esc itself and closes first).
 function onKey(e) {
-  if (e.key !== 'Escape' || S.stage !== 'app' || !drawerOpen() || app.querySelector(':scope > .shade')) return;
+  if (e.key !== 'Escape' || e.repeat || S.stage !== 'app' || !drawerOpen() || app.querySelector(':scope > .shade')) return;
   cancelDrawer();
 }
 
@@ -353,7 +359,11 @@ function renderScreen({ keepScroll = false, reuseForm = null } = {}) {
       root.className = 'screen';
     }
     openDrawer(r, root);
-    if (!reuseForm) formScreen.render(makeCtx(r), root);
+    if (!reuseForm) {
+      formScreen.render(makeCtx(r), root);
+      // registering: ready to type the amount
+      if (r.name === 'registar') root.querySelector('#amt')?.focus();
+    }
     S.formRoot = root;
     return;
   }
@@ -386,7 +396,15 @@ function go(route) {
   else location.hash = hash;
 }
 
+// Same as go, without a new history entry.
+function replace(route) {
+  const hash = routeHash(route);
+  if (location.hash === hash) onRoute();
+  else location.replace(hash);
+}
+
 function onRoute() {
+  S.closing = false;
   const prev = S.route;
   S.route = parseRoute(location.hash, todayISO());
   // true when the previous history entry is the route shown behind the drawer
