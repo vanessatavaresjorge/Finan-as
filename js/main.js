@@ -54,7 +54,8 @@ const S = {
   shell: null,
   wide: isWide(),
   bgRoute: null, // last route that is not a form: shown behind the drawer on a wide window
-  formRoot: null, // root of the open register/edit form, moved (not re-rendered) on resize
+  formRoot: null,
+  drawerFromBg: false, // root of the open register/edit form, moved (not re-rendered) on resize
   stageKey: null, // what the login/profile/lock screen shown depends on (re-render when it changes)
   loadTimer: 0,
   hiddenAt: null,
@@ -300,12 +301,12 @@ function paint(route, keepScroll) {
 function openDrawer(route, formRoot) {
   let drawer = app.querySelector(':scope > .drawer');
   if (!drawer) {
-    const frag = h(`<div class="backdrop" data-act="drawer-cancel"></div>
+    // The backdrop only blocks the screen behind: the drawer closes with Cancelar, Esc or saving.
+    const frag = h(`<div class="backdrop"></div>
       <aside class="drawer" role="dialog" aria-modal="true">
         <div class="drawer-hd"><span class="title"></span><button type="button" data-act="drawer-cancel">Cancelar</button></div>
       </aside>`);
-    const [backdrop, aside] = frag.children;
-    bindActions(backdrop, { 'drawer-cancel': cancelDrawer });
+    const aside = frag.children[1];
     bindActions(aside.querySelector('.drawer-hd'), { 'drawer-cancel': cancelDrawer });
     // sheets already open (a category sheet) stay above the drawer
     app.querySelector(':scope > .shade') ? app.insertBefore(frag, app.querySelector(':scope > .shade')) : app.append(frag);
@@ -322,7 +323,12 @@ function closeDrawer() {
   for (const el of app.querySelectorAll(':scope > .drawer, :scope > .backdrop')) el.remove();
 }
 
-function cancelDrawer() { go(backgroundRoute()); }
+// Opened from the screen behind in this session: going back removes the form from the history, so
+// Back never reopens an empty drawer. Otherwise (bookmark, reload) the form entry is replaced.
+function cancelDrawer() {
+  if (S.drawerFromBg) history.back();
+  else location.replace(routeHash(backgroundRoute()));
+}
 
 // Esc closes the drawer (a sheet open over it handles Esc itself and closes first).
 function onKey(e) {
@@ -381,7 +387,10 @@ function go(route) {
 }
 
 function onRoute() {
+  const prev = S.route;
   S.route = parseRoute(location.hash, todayISO());
+  // true when the previous history entry is the route shown behind the drawer
+  if (isForm(S.route)) S.drawerFromBg = !isForm(prev) && prev === S.bgRoute;
   remember(S.route);
   renderScreen();
 }

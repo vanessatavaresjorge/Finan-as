@@ -63,10 +63,36 @@ try {
   await waitFor(chrome, `location.hash === '#/mes/2026-11' && !document.querySelector('.drawer')`);
   assert.equal(await chrome.eval(`!!document.querySelector('.backdrop')`), false);
 
-  // backdrop click = Cancelar
+  // Back after Esc does not reopen the drawer: it goes to what was before the month
+  await chrome.eval(`location.hash = '#/ano/2026'`);
+  await waitFor(chrome, `location.hash === '#/ano/2026'`);
+  await chrome.eval(`location.hash = '#/mes/2026-11'`);
+  await waitFor(chrome, monthTitle);
   await chrome.click('.sidebar .add');
   await waitFor(chrome, `!!document.querySelector('.drawer #amt')`);
+  await chrome.eval(esc);
+  await waitFor(chrome, `location.hash === '#/mes/2026-11' && !document.querySelector('.drawer')`);
+  await chrome.eval(`history.back()`);
+  await waitFor(chrome, `location.hash === '#/ano/2026'`);
+  assert.equal(await chrome.eval(`!!document.querySelector('.drawer')`), false);
+  await chrome.eval(`location.hash = '#/mes/2026-11'`);
+  await waitFor(chrome, monthTitle);
+
+  // A backdrop click does nothing: the drawer stays open with what was typed
+  await chrome.click('.sidebar .add');
+  await waitFor(chrome, `!!document.querySelector('.drawer #amt')`);
+  await chrome.type('#amt', '5,5');
+  await chrome.type('#note', 'fica');
   await chrome.click('.backdrop');
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal(await chrome.eval(`!!document.querySelector('.drawer') && location.hash`), '#/registar');
+  assert.deepEqual(await chrome.eval(`[${val('#amt')}, ${val('#note')}]`), ['5,5', 'fica']);
+  // data from the other device while the drawer is open: values kept, drawer open, month behind updated
+  await chrome.eval(`__demo.store.addMove({ profileId: 'b', type: 'out', cents: 500, categoryId: 'carro', date: '2026-11-02', note: 'outro aparelho' })`);
+  assert.equal(await chrome.eval(`!!document.querySelector('.drawer #amt') && location.hash`), '#/registar');
+  assert.deepEqual(await chrome.eval(`[${val('#amt')}, ${val('#note')}]`), ['5,5', 'fica']);
+  assert.equal(await chrome.eval(monthTitle), true);
+  await chrome.eval(esc);
   await waitFor(chrome, `location.hash === '#/mes/2026-11' && !document.querySelector('.drawer')`);
 
   // ---- Review Focus 4: #/registar opened directly -> drawer over the current month ----
@@ -76,14 +102,19 @@ try {
   await waitFor(chrome, `!!document.querySelector('.drawer #amt')`);
   assert.equal(await chrome.eval(`document.querySelector('.sidebar .nav.on').textContent`), 'Mês');
   assert.equal(await chrome.eval(`!!document.querySelector(':scope #app > main.screen .monthnav')`), true, 'mês atual por trás');
+  // opened directly: Cancelar replaces the form entry (no extra history entry)
+  const len = await chrome.eval(`history.length`);
   await chrome.click('.drawer [data-act="drawer-cancel"]');
   await waitFor(chrome, `location.hash === '#/mes/${ym}' && !document.querySelector('.drawer')`);
+  assert.equal(await chrome.eval(`history.length`), len);
 
   // editar opened directly: same, with the edit title
   const mine = await chrome.eval(`__demo.store.getState().moves.find(m => m.profileId === 'a').id`);
   await chrome.goto(`${server.url}/?demo=1&unlock=a&n=3#/editar/${encodeURIComponent(mine)}`);
   await waitFor(chrome, `!!document.querySelector('.drawer #amt')`);
   assert.equal(await chrome.eval(`document.querySelector('.drawer .drawer-hd .title').textContent`), 'Editar movimento');
+  // the form's own ‹ Voltar is hidden: Cancelar does that job
+  assert.equal(await chrome.eval(`getComputedStyle(document.querySelector('.drawer .back')).display`), 'none');
   assert.equal(await chrome.eval(`!!document.querySelector('#app > main.screen .monthnav')`), true);
   await chrome.eval(esc);
   await waitFor(chrome, `location.hash === '#/mes/${ym}' && !document.querySelector('.drawer')`);

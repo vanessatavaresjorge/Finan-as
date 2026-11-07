@@ -214,6 +214,8 @@ input { font:inherit; color:inherit; }
 .drawer-hd button { color:var(--accent); font-size:15px; padding:6px 0 6px 10px; }
 .drawer > .screen { flex:1; min-height:0; }
 .drawer .scroll { padding:8px 22px 24px; }
+/* Cancelar in the drawer header replaces the form's own ‹ Voltar */
+.drawer .back { display:none; }
 /* Sheets: category sheet as a right drawer, confirmations as a centred dialog */
 .wide .shade { align-items:center; justify-content:center; }
 .wide .sheet:not(.side) { width:calc(100% - 32px); max-width:440px; border-radius:18px; padding-bottom:18px; }
