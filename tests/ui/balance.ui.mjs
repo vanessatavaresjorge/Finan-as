@@ -70,6 +70,15 @@ try {
   assert.equal(await balText(), nb(formatEur(yb(year - 1, 'a').total)));
   await open('a', `/ano/${year}/poupanca`, 390, 844, '.balcard');
   assert.equal(await balText(), nb(formatEur(yb(year, 'a').total)));
+  // Ano hint: only the profile without an opening balance, never Casa
+  const hintCount = `document.querySelectorAll('.balcard .balhint').length`;
+  assert.equal(await chrome.eval(hintCount), 0);
+  await open('b', `/ano/${year}`, 390, 844, '.balcard');
+  assert.equal(await chrome.eval(text('.balcard .balhint')), HINT);
+  await open('b', `/ano/${year}/poupanca`, 390, 844, '.balcard');
+  assert.equal(await chrome.eval(text('.balcard .balhint')), HINT);
+  await open('a', `/ano/${year}/poupanca`, 390, 844, '.balcard');
+  assert.equal(await chrome.eval(hintCount), 0);
   await open('a', `/ano/${year}/casa`, 390, 844, '.balcard');
   assert.equal(await balText(), nb(formatEur(yb(year, 'casa').total)));
   assert.ok((await chrome.eval(text('.balcard .split'))).includes('Perfil B'));
@@ -105,6 +114,12 @@ try {
   await chrome.screenshot(`${SHOTS}/balance-wide-1024.png`, { width: 1024, height: 768 });
 
   // ---- Wide Ano ----
+  const wideHint = `[...document.querySelectorAll('.wyear .kpiphrase')].map(e => e.textContent).includes(${JSON.stringify(HINT)})`;
+  for (const [u, h, want] of [['b', `/ano/${year}`, true], ['b', `/ano/${year}/poupanca`, true], ['a', `/ano/${year}`, false], ['a', `/ano/${year}/casa`, false]]) {
+    await open(u, h, 1280, 800, '.wyear .kpis');
+    assert.equal(await chrome.eval(wideHint), want, `${u} ${h}`);
+    assert.equal(await chrome.eval(`!!document.querySelector('.wyear .kpis .balhint')`), false);
+  }
   await open('a', `/ano/${year}`, 1280, 800, '.kpis');
   assert.equal(await chrome.eval(`document.querySelectorAll('.wyear .kpis .kpi').length`), 4);
   assert.equal(await chrome.eval(`document.querySelectorAll('.wyear .kpis .kpi')[3].querySelector('.label').textContent`), `Em conta no fim de ${year}`);

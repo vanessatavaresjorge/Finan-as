@@ -120,3 +120,13 @@ test('import: opening comes from incoming, pins kept (old backup clears opening)
   assert.deepEqual(mergeProfilesForImport(existing, [{ id:'a', name:'Ana', openingCents:-7, openingDate:'2026-11-01' }]),
     [{ id:'a', name:'Ana', pinHash:'h', pinSalt:'s', pinIter:1, openingCents:-7, openingDate:'2026-11-01' }]);
 });
+
+test('null opening fields count as absent', () => {
+  const good = buildBackup(data);
+  const raw = JSON.stringify({ ...good, profiles: good.profiles.map(p => ({ ...p, openingCents: null, openingDate: null })) });
+  const r = parseBackup(raw);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.data.profiles, good.profiles.map(p => ({ id: p.id, name: p.name })));
+  const merged = mergeProfilesForImport([{ id:'a', name:'Ana', pinHash:'h', pinSalt:'s', pinIter:1, openingCents:100, openingDate:'2026-10-31' }], r.data.profiles);
+  assert.equal(merged[0].openingCents, null); assert.equal(merged[0].openingDate, null);
+});

@@ -48,4 +48,4 @@ export function balanceSplit(b) {
 }
 
 // Hint only in a profile view that has no opening balance.
-export const balanceHint = (b, casa) => (!casa && !b.hasOpening ? `<p class="balhint">${BALANCE_HINT}</p>` : '');
+export const balanceHint = (b, casa, cls = 'balhint') => (!casa && !b.hasOpening ? `<p class="${cls}">${BALANCE_HINT}</p>` : '');

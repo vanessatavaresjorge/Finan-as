@@ -36,7 +36,7 @@ function validate(raw) {
   for (const p of raw.profiles) {
     if (!isObj(p) || !isId(p.id) || !isStr(p.name) || profileIds.has(p.id)) return null;
     profileIds.add(p.id);
-    const hasC = p.openingCents !== undefined, hasD = p.openingDate !== undefined;
+    const hasC = p.openingCents != null, hasD = p.openingDate != null;
     if (hasC !== hasD) return null;
     if (hasC && (!Number.isInteger(p.openingCents) || Math.abs(p.openingCents) > 999999999 || !isRealDate(p.openingDate))) return null;
     profiles.push(hasC ? { id: p.id, name: p.name, openingCents: p.openingCents, openingDate: p.openingDate } : { id: p.id, name: p.name });

@@ -183,7 +183,7 @@ function wideView(ctx, route, casa) {
       <div class="card kpi"><span class="label">${balTitle(ym)}</span><b class="num${balanceNeg(model.balance) ? ' neg' : ''}">${balanceValue(model.balance)}</b>${balanceSplit(model.balance)}</div>
     </div>
     ${widePhrase(t, split)}
-    ${balanceHint(model.balance, casa).replace('class="balhint"', 'class="kpiphrase"')}
+    ${balanceHint(model.balance, casa, 'kpiphrase')}
     <div class="wmid">
       <div class="card wcats"><div class="ct">Categorias</div>${cats}</div>
       <div class="card wchart"><div class="ct">Saídas em ${year}</div>${chart}</div>

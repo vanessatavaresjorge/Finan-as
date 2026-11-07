@@ -1,7 +1,7 @@
 // Year screen (route ano): spending or savings per month, chart, and the month-by-month list.
 import { formatEur, formatPct, todayISO, MONTHS } from '../logic/format.js';
 import { yearModel } from '../logic/stats.js';
-import { esc, mount, bindActions, viewSeg, balanceValue, balanceNeg, balanceSplit } from './dom.js';
+import { esc, mount, bindActions, viewSeg, balanceValue, balanceNeg, balanceSplit, balanceHint } from './dom.js';
 import { barChart, euroTick } from './chart.js';
 
 const eur = formatEur;
@@ -36,7 +36,8 @@ const pctTick = p => (p < 0 ? MINUS : '') + Math.abs(p) + '%';
 function describe(model, route, casa, sel, categories) {
   const { year } = route;
   const bal = model.balance;
-  const balCard = (cls = 'card') => `<div class="${cls}"><span class="label">Em conta no fim de ${year}</span><b class="num"${balanceNeg(bal) ? DANGER : ''}>${balanceValue(bal)}</b>${balanceSplit(bal)}</div>`;
+  const balCard = (cls = 'card') => `<div class="${cls}"><span class="label">Em conta no fim de ${year}</span><b class="num"${balanceNeg(bal) ? DANGER : ''}>${balanceValue(bal)}</b>${balanceSplit(bal)}${cls.includes('balcard') ? balanceHint(bal, casa) : ''}</div>`;
+  const hint = balanceHint(bal, casa, 'kpiphrase');
   const where = casa ? ' · Casa' : '';
   if (route.mode === 'poupanca') {
     const rates = model.months.map(m => (m ? m.rate * 100 : null));
@@ -57,7 +58,7 @@ function describe(model, route, casa, sel, categories) {
         `<div class="card kpi"><span class="label">Poupaste</span><b class="num"${model.saved < 0 ? DANGER : ''}>${eur(model.saved)}</b></div>`,
         `<div class="card kpi"><span class="label">Mês com mais poupança</span><b>${model.best ? cap(MONTHS[model.best.month]) : '—'}</b></div>`,
         balCard('card kpi')],
-      note: model.inv > 0 ? `Foi para categorias de poupança: ${eur(model.inv)}` : '',
+      note: model.inv > 0 ? `Foi para categorias de poupança: ${eur(model.inv)}` : '', hint,
       values: rates, lo: min, hi: max, step, tick: pctTick, chartName: 'Taxa de poupança',
       fmt: i => (rates[i] === null ? '—' : formatPct(model.months[i].rate)),
       readStyle: ms && isNeg(ms.rate) ? DANGER : '', readSub: sub, readSplit: mSplit(sel), unit: 'poupado · taxa',
@@ -82,7 +83,7 @@ function describe(model, route, casa, sel, categories) {
       `<div class="card kpi"><span class="label">Média por mês</span><b class="num">${model.average === null ? '—' : eur(Math.round(model.average))}</b></div>`,
       `<div class="card kpi"><span class="label">Mês mais alto</span><b>${model.highest ? `${cap(MONTHS[model.highest.month])} · ${eur(model.highest.cents)}` : '—'}</b></div>`,
       balCard('card kpi')],
-    chips: `<div class="fchips">${chips}</div>`, note: '',
+    chips: `<div class="fchips">${chips}</div>`, note: '', hint,
     values: model.months, lo: 0, hi: model.scale.top, step: model.scale.step, tick: euroTick, chartName: 'Saídas',
     fmt: i => eur(model.months[i]),
     readStyle: '', readSub: '', readSplit: mSplit(sel), unit: 'em euros',
@@ -104,6 +105,7 @@ function widePage(ctx, route, casa, state, d, sel) {
     </div>
     <div class="kpis k3">${d.kpis.join('')}</div>
     ${d.note ? `<p class="kpiphrase">${d.note}</p>` : ''}
+    ${d.hint}
     ${d.chips ?? ''}
     <div class="wymid">
       <div class="card chartcard">
