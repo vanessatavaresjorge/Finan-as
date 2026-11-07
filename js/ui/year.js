@@ -1,10 +1,10 @@
 // Year screen (route ano): spending or savings per month, chart, and the month-by-month list.
-import { formatEur, formatPct, todayISO, MONTHS, MONTH_INITIALS } from '../logic/format.js';
+import { formatEur, formatPct, todayISO, MONTHS } from '../logic/format.js';
 import { yearModel } from '../logic/stats.js';
 import { esc, mount, bindActions } from './dom.js';
+import { barChart, euroTick } from './chart.js';
 
 const eur = formatEur;
-const NBSP = ' ';
 const MINUS = '−';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 
@@ -27,12 +27,6 @@ function syncState(profileId, year) {
 const splitLine = parts =>
   `<div class="split">${parts.map(p => `${esc(p.name)} ${p.text}`).join(' · ')}</div>`;
 const savedTxt = s => (s.rate === null ? '—' : `${eur(s.saved)} (${formatPct(s.rate)})`);
-const grp = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
-const euroTick = cents => {
-  const e = Math.abs(cents) / 100;
-  const t = Number.isInteger(e) ? grp(e) : e.toFixed(2).replace('.', ',');
-  return (cents < 0 ? MINUS : '') + t;
-};
 // Colour by what is shown: a rate that displays as 0% is not negative.
 const isNeg = rate => rate !== null && Math.round(rate * 100) < 0;
 const DANGER = ' style="color:var(--danger)"';
@@ -81,15 +75,6 @@ function describe(model, route, casa, sel, categories) {
   };
 }
 
-function bar(v, lo, hi) {
-  if (v === null || v === 0) return '';
-  const span = hi - lo;
-  const zero = -lo / span * 100;
-  const height = Math.abs(v) / span * 100;
-  return v > 0 ? `<i style="bottom:${zero}%;height:${height}%"></i>`
-    : `<i class="negb" style="bottom:${zero - height}%;height:${height}%"></i>`;
-}
-
 function page(ctx, route, casa) {
   const state = ctx.store.getState();
   const { year } = route;
@@ -101,10 +86,6 @@ function page(ctx, route, casa) {
   const d = describe(model, route, casa, sel, outCats);
   const me = state.profiles.find(p => p.id === ctx.profileId);
   const isSave = route.mode === 'poupanca';
-
-  const grid = [];
-  for (let v = d.lo; v <= d.hi; v += d.step) grid.push(v);
-  const span = d.hi - d.lo;
 
   const seg = state.profiles.length > 1
     ? `<div class="seg vseg"><button class="${casa ? '' : 'on'}" data-act="view" data-v="me">${esc(me?.name ?? '')}</button><button class="${casa ? 'on' : ''}" data-act="view" data-v="casa">Casa</button></div>`
@@ -120,11 +101,8 @@ function page(ctx, route, casa) {
         <div><span class="label">${cap(MONTHS[sel])} ${year}${d.readSub ? ' · ' + d.readSub : ''}</span><b class="num"${d.readStyle}>${d.fmt(sel)}</b>${d.readSplit}</div>
         <button data-act="open" data-v="${sel}">Ver mês ›</button>
       </div>
-      <div class="chart" role="img" aria-label="${d.chartName} por mês em ${year}">
-        ${grid.map(v => `<div class="gl ${v === 0 ? 'base' : ''}" style="bottom:${(v - d.lo) / span * 100}%"><span>${d.tick(v)}</span></div>`).join('')}
-        <div class="cols">${d.values.map((v, i) => `<button class="${i === sel ? 'sel' : ''}" data-act="sel" data-v="${i}" aria-label="${MONTHS[i]}: ${d.fmt(i)}">${bar(v, d.lo, d.hi)}</button>`).join('')}</div>
-      </div>
-      <div class="mlabels">${MONTH_INITIALS.map((n, i) => `<span class="${i === sel ? 'sel' : ''}">${n}</span>`).join('')}</div>
+      ${barChart({ values: d.values, selected: sel, scale: { min: d.lo, max: d.hi, step: d.step, tick: d.tick },
+        format: (v, i) => d.fmt(i), label: `${d.chartName} por mês em ${year}` })}
     </div>
     <div class="sech"><h3>Mês a mês</h3><span>${d.unit}</span></div>
     <div class="card list all">${MONTHS.map((n, i) => `<button class="yrow ${i === sel ? 'sel' : ''}" data-act="open" data-v="${i}"><span>${cap(n)}</span>${d.listVal(i)}</button>`).join('')}</div>
@@ -154,7 +132,7 @@ export function render(ctx, root) {
     next: () => year(route.year + 1),
     view: el => ctx.go({ name: 'ano', year: route.year, mode: route.mode, casa: el.dataset.v === 'casa' }),
     mode: el => ctx.go({ name: 'ano', year: route.year, mode: el.dataset.v, casa }),
-    sel: el => { ui.sel = Number(el.dataset.v); draw(); },
+    sel: el => { ui.sel = Number(el.dataset.month); draw(); },
     filter: el => { ui.filter = el.dataset.v; draw(); },
     open: el => ctx.go({ name: 'mes', ym: `${route.year}-${String(Number(el.dataset.v) + 1).padStart(2, '0')}`, casa }),
   });

@@ -1,7 +1,8 @@
 // Month screen (routes mes, cat, entradas): totals, savings rate, categories and movements.
 import { formatEur, formatPct, shortDate, monthTitle, addMonths } from '../logic/format.js';
-import { monthModel, categoryOf } from '../logic/stats.js';
+import { monthModel, yearModel, categoryOf } from '../logic/stats.js';
 import { esc, mount, bindActions } from './dom.js';
+import { barChart, euroTick } from './chart.js';
 
 const eur = formatEur;
 
@@ -76,6 +77,123 @@ function monthView(ctx, ym, casa) {
   </div>`;
 }
 
+// ---------- Wide window: dashboard with KPI cards, categories | year chart, movements table ----------
+
+function viewSeg(state, me, casa) {
+  return state.profiles.length > 1
+    ? `<div class="seg vseg"><button class="${casa ? '' : 'on'}" data-act="view" data-v="me">${esc(me?.name ?? '')}</button><button class="${casa ? 'on' : ''}" data-act="view" data-v="casa">Casa</button></div>`
+    : '';
+}
+
+function wideSaveKpi(t, split) {
+  const head = `<span class="label">Taxa de poupança</span>`;
+  if (t.rate === null) {
+    return `<div class="card kpi">${head}<b class="num">—</b><div class="meter"><i style="width:0%"></i></div>
+      <p>Sem entradas neste mês</p>${split ? splitLine(split.map(p => ({ name: p.name, text: savedTxt(p) }))) : ''}</div>`;
+  }
+  const width = Math.max(0, Math.min(1, t.rate)) * 100;
+  const phrase = t.saved >= 0
+    ? `Poupaste ${eur(t.saved)} dos ${eur(t.inn)} que entraram${t.inv > 0 ? `, incluindo ${eur(t.inv)} em categorias de poupança` : ''}.`
+    : `Gastaste mais ${eur(-t.saved)} do que entrou.`;
+  return `<div class="card kpi">${head}<b class="num${t.rate < 0 ? ' neg' : ''}">${formatPct(t.rate)}</b>
+    <div class="meter"><i style="width:${width}%"></i></div>
+    ${split ? splitLine(split.map(p => ({ name: p.name, text: savedTxt(p) }))) : `<p${t.saved < 0 ? ' class="neg"' : ''}>${phrase}</p>`}</div>`;
+}
+
+function wideCatRow(c, casa, on) {
+  const inner = `<div class="top"><span class="nmw"><span class="ic">${esc(c.icon)}</span><span class="nm">${esc(c.name)}</span><span class="pct">${c.pct}%</span></span><b class="num">${eur(c.cents)}</b></div>
+    <div class="bar"><i class="${c.savings ? 'sav' : ''}" style="width:${c.barPct}%"></i></div>
+    ${casa ? splitLine(c.split.map(p => ({ name: p.name, text: eur(p.cents) })), ' indent') : ''}`;
+  return casa ? `<div class="row">${inner}</div>`
+    : `<button class="row${on ? ' on' : ''}" data-act="detail" data-cat="${esc(c.id)}"${on ? ' aria-pressed="true"' : ''}>${inner}</button>`;
+}
+
+function movRow(m) {
+  const isIn = m.type === 'in';
+  return `<tr data-act="edit" data-id="${esc(m.id)}" tabindex="0">
+    <td class="d">${esc(shortDate(m.date))}</td>
+    <td class="c"><span class="ic">${esc(m.icon)}</span>${esc(m.categoryName)}</td>
+    <td class="n">${esc(m.note)}</td>
+    <td class="v num${isIn ? ' pos' : ''}">${isIn ? '+' : '−'}${eur(m.cents)}</td></tr>`;
+}
+
+function movesCard(state, model, route) {
+  const isIn = route.name === 'entradas';
+  const filtered = isIn || route.name === 'cat';
+  const moves = !filtered ? model.moves
+    : model.moves.filter(m => (isIn ? m.type === 'in' : m.categoryId === route.catId));
+  let chip = '';
+  if (filtered) {
+    const c = isIn ? null : categoryOf(state.categories, route.catId);
+    chip = `<div class="movfilter"><button class="chip on" data-act="unfilter" aria-label="Remover filtro">${isIn ? 'Entradas' : `${esc(c.icon)} ${esc(c.name)}`} ×</button>
+      <button class="link" data-act="unfilter">‹ Voltar</button></div>`;
+  }
+  const body = moves.length ? moves.map(movRow).join('')
+    : `<tr class="none"><td colspan="4">Sem movimentos neste mês.</td></tr>`;
+  return `${chip}<div class="card wmovs">
+    <div class="ct">Movimentos <span>${moves.length}</span></div>
+    <table class="movs">
+      <colgroup><col class="d"><col class="c"><col class="n"><col class="v"></colgroup>
+      <thead><tr><th>Data</th><th>Categoria</th><th>Nota</th><th class="v">Valor</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>`;
+}
+
+function wideView(ctx, route, casa) {
+  const state = ctx.store.getState();
+  const { ym } = route;
+  const view = casa ? 'casa' : ctx.profileId;
+  const model = monthModel({ ...state, ym, view });
+  const { totals: t, split } = model;
+  const sp = fn => (split ? splitLine(split.map(p => ({ name: p.name, text: fn(p) }))) : '');
+  const me = state.profiles.find(p => p.id === ctx.profileId);
+  const isIn = route.name === 'entradas';
+  const catOn = route.name === 'cat' ? route.catId : null;
+
+  const year = Number(ym.slice(0, 4));
+  const mIdx = Number(ym.slice(5, 7)) - 1;
+  const ymodel = yearModel({ ...state, year, view, mode: 'gastos', filter: 'all' });
+  const chart = barChart({
+    values: ymodel.months, selected: mIdx,
+    scale: { min: 0, max: ymodel.scale.top, step: ymodel.scale.step, tick: euroTick },
+    format: v => eur(v), label: `Saídas por mês em ${year}`, onSelectAttr: 'month',
+  });
+
+  const noMoves = casa ? t.inn === 0 && t.out === 0 && !model.categories.length : !model.moves.length;
+  let cats;
+  if (noMoves) {
+    cats = `<div class="empty">Ainda não há movimentos neste mês.${casa ? '' : ' Carrega em <b>+ Registar</b> para registar o primeiro.'}</div>`;
+  } else if (!model.categories.length) {
+    cats = '<div class="empty">Ainda não há saídas neste mês.</div>';
+  } else {
+    cats = `<div class="list">${model.categories.map(c => wideCatRow(c, casa, c.id === catOn)).join('')}</div>`;
+  }
+
+  const entrou = `<span class="label">Entrou</span><b class="num in">${eur(t.inn)}</b>${sp(p => eur(p.inn))}`;
+  return `<div class="scroll"><div class="wmonth">
+    ${state.pending ? '<div class="label sync" role="status">A sincronizar…</div>' : ''}
+    <div class="wtop">
+      <div class="monthnav"><button data-act="prev" aria-label="Mês anterior">‹</button><span class="title">${esc(monthTitle(ym))}</span><button data-act="next" aria-label="Mês seguinte">›</button></div>
+      ${viewSeg(state, me, casa)}
+    </div>
+    <div class="kpis">
+      <div class="card kpi"><span class="label">Saiu</span><b class="num">${eur(t.out)}</b>${sp(p => eur(p.out))}</div>
+      ${casa ? `<div class="card kpi">${entrou}</div>`
+        : `<button class="card kpi${isIn ? ' on' : ''}" data-act="entradas"${isIn ? ' aria-pressed="true"' : ''}>${entrou}</button>`}
+      <div class="card kpi"><span class="label">Sobrou</span><b class="num${t.left < 0 ? ' neg' : ''}">${eur(t.left)}</b>${sp(p => eur(p.left))}</div>
+      ${wideSaveKpi(t, split)}
+    </div>
+    <div class="wmid">
+      <div class="card wcats"><div class="ct">Categorias</div>${cats}</div>
+      <div class="card wchart"><div class="ct">Saídas em ${year}</div>${chart}</div>
+    </div>
+    ${casa || noMoves ? '' : movesCard(state, model, route)}
+  </div></div>`;
+}
+
+// Scroll position of the wide month, so filtering the table (a new route) does not jump to the top.
+let wideScroll = { key: null, top: 0 };
+
 function detailView(ctx, route) {
   const state = ctx.store.getState();
   const { ym } = route;
@@ -101,7 +219,8 @@ export function render(ctx, root) {
   // Detail lists belong to one profile; reached with /casa they show the Casa month instead.
   if (detail && route.casa) { ctx.go({ name: 'mes', ym: route.ym, casa: true }); return; }
   const casa = route.casa && profiles.length > 1;
-  mount(root, detail ? detailView(ctx, route) : monthView(ctx, route.ym, casa));
+  if (ctx.wide) renderWide(ctx, root, route, casa);
+  else mount(root, detail ? detailView(ctx, route) : monthView(ctx, route.ym, casa));
 
   const mes = (ym, c) => ctx.go({ name: 'mes', ym, casa: c });
   bindActions(root, {
@@ -109,8 +228,32 @@ export function render(ctx, root) {
     next: () => mes(addMonths(route.ym, 1), casa),
     view: el => mes(route.ym, el.dataset.v === 'casa'),
     back: () => mes(route.ym, false),
-    detail: el => ctx.go({ name: 'cat', ym: route.ym, catId: el.dataset.cat, casa: false }),
-    entradas: () => ctx.go({ name: 'entradas', ym: route.ym, casa: false }),
+    // On a wide window a second click on the active filter removes it.
+    detail: el => (el.classList.contains('on') ? mes(route.ym, false)
+      : ctx.go({ name: 'cat', ym: route.ym, catId: el.dataset.cat, casa: false })),
+    entradas: el => (el.classList.contains('on') ? mes(route.ym, false)
+      : ctx.go({ name: 'entradas', ym: route.ym, casa: false })),
     edit: el => ctx.go({ name: 'editar', moveId: el.dataset.id, casa: false }),
+    unfilter: () => mes(route.ym, false),
+    month: el => mes(`${route.ym.slice(0, 4)}-${String(Number(el.dataset.month) + 1).padStart(2, '0')}`, casa),
+  });
+}
+
+function renderWide(ctx, root, route, casa) {
+  mount(root, wideView(ctx, route, casa));
+  const sc = root.querySelector('.scroll');
+  // Same month and view as the last wide render (filter on or off, a redraw): keep the scroll.
+  const key = `${ctx.profileId}|${route.ym}|${casa}`;
+  if (wideScroll.key === key) sc.scrollTop = wideScroll.top;
+  wideScroll = { key, top: sc.scrollTop };
+  sc.addEventListener('scroll', () => { wideScroll = { key, top: sc.scrollTop }; }, { passive: true });
+  // With a filter, bring the table into view if it is below the window.
+  const filter = root.querySelector('.movfilter');
+  if (filter && filter.getBoundingClientRect().top > sc.getBoundingClientRect().bottom - 80) {
+    filter.scrollIntoView({ block: 'start' });
+  }
+  // Table rows are focusable: Enter opens the move, as a click does.
+  root.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.matches?.('tr[data-act="edit"]')) e.target.click();
   });
 }

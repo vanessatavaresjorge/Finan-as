@@ -220,3 +220,57 @@ input { font:inherit; color:inherit; }
 .wide .shade { align-items:center; justify-content:center; }
 .wide .sheet:not(.side) { width:calc(100% - 32px); max-width:440px; border-radius:18px; padding-bottom:18px; }
 .wide .sheet.side { position:absolute; top:0; right:0; bottom:0; width:420px; max-height:none; border-radius:0; padding:22px 22px 18px; box-shadow:-8px 0 28px rgba(42,38,34,.14); }
+/* Wide month: top bar, 4 KPI cards, categories | year chart, movements table */
+.wmonth { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.wmonth .card { min-width:0; }
+.wmonth .ct { font-size:13px; color:var(--muted); margin-bottom:6px; }
+.wmonth .ct span { margin-left:6px; }
+.wtop { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.wtop .monthnav { justify-content:flex-start; gap:4px; }
+.wtop .monthnav .title { font-size:20px; min-width:170px; text-align:center; }
+.wtop .vseg { margin:0; font-size:14px; min-width:220px; }
+.wtop .vseg button { padding:6px 14px; }
+.kpis { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; }
+.kpi { display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch; text-align:left; padding:14px 16px; }
+.kpi .label { display:block; margin-bottom:4px; }
+/* numbers are never cut: a bit smaller on the narrowest wide windows, and they wrap if still too long */
+.kpi > b { display:block; font-size:clamp(21px, 2vw, 26px); font-weight:600; line-height:1.15; font-variant-numeric:lining-nums proportional-nums; overflow-wrap:anywhere; }
+.kpi > b.in { color:var(--in); }
+.kpi > b.neg, .kpi p.neg { color:var(--danger); }
+.kpi p { font-size:13px; color:var(--muted); margin-top:8px; line-height:1.4; }
+.kpi .meter { margin-top:10px; }
+button.kpi:hover, .wcats button.row:hover { background:#fbf7f0; }
+.kpi.on { box-shadow:inset 0 0 0 2px var(--accent); }
+.wmid { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:14px; align-items:stretch; }
+.wcats, .wchart, .wmovs { padding:14px 16px; }
+.wcats .list { margin:0; padding:0; }
+.wcats .row { padding:9px 8px; margin:0 -8px; width:calc(100% + 16px); }
+.wcats .row.on { background:var(--bg); }
+.wcats .row.on .nm { font-weight:600; }
+.wcats .empty { padding:28px 8px; }
+.nmw { display:flex; align-items:center; min-width:0; }
+.nmw .ic { flex:none; }
+.nm { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nmw .pct { flex:none; }
+/* the chart fills its card, as tall as the categories card but no taller than 480 px */
+.wchart { display:flex; flex-direction:column; min-height:300px; max-height:480px; }
+.wchart .chart { flex:1; height:auto; min-height:200px; margin-top:12px; margin-left:48px; }
+.wchart .mlabels { margin-left:48px; }
+.wchart .gl span { font-size:12px; }
+.wchart .mlabels span { font-size:12px; }
+.movfilter { display:flex; align-items:center; gap:14px; margin-bottom:-4px; }
+.movfilter .chip { max-width:60%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.link { color:var(--accent); font-size:15px; padding:6px 0; }
+table.movs { width:100%; table-layout:fixed; border-collapse:collapse; font-size:14px; }
+table.movs col.d { width:84px; } table.movs col.c { width:34%; } table.movs col.v { width:130px; }
+table.movs th { font-size:12px; font-weight:600; color:var(--muted); text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+table.movs td { padding:9px 8px; border-bottom:1px solid var(--line); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+table.movs tbody tr:last-child td { border-bottom:0; }
+table.movs .v { text-align:right; font-weight:600; }
+table.movs td.d { color:var(--muted); font-variant-numeric:tabular-nums; }
+table.movs td.n { color:var(--muted); }
+table.movs td .ic { width:24px; font-size:16px; }
+table.movs tbody tr[data-act] { cursor:pointer; }
+table.movs tbody tr[data-act]:hover td { background:#fbf7f0; }
+table.movs tbody tr:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+table.movs tr.none td { text-align:center; color:var(--muted); padding:22px 8px; }
