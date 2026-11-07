@@ -322,3 +322,12 @@ table.movs tr.none td { text-align:center; color:var(--muted); padding:22px 8px;
 .balcard b { display:block; font-size:18px; font-weight:600; margin-top:2px; }
 .balcard b.neg { color:var(--danger); }
 .balhint { font-size:12px; color:var(--muted); line-height:1.35; margin:4px 0 0; }
+
+/* Saldo inicial row under the open profile, and the remove button in its sheet */
+.openrow { display:flex; align-items:center; gap:10px; padding:2px 0 10px; border-bottom:1px solid var(--line); font-size:14px; }
+.openrow .ol { color:var(--muted); white-space:nowrap; }
+.openrow .ov { flex:1; text-align:right; }
+.openrow .nw { white-space:nowrap; }
+.openrow .ov.neg { color:var(--danger); }
+.openrow button { font-size:14px; color:var(--accent); padding:6px 4px 6px 8px; }
+.btn.danger-text { color:var(--danger); }

@@ -5,6 +5,9 @@ import { deletionPlan, sortCategories, validateProfileName } from '../logic/cate
 import { buildBackup, parseBackup, backupFileName, INVALID_BACKUP } from '../backup.js';
 import { hashPin, verifyPin, lockoutState, registerFailure, registerSuccess, MAX_FAILS } from '../pin.js';
 import { openCategorySheet } from './catsheet.js';
+import { openOpeningSheet } from './opening.js';
+import { hasOpening } from '../logic/balance.js';
+import { formatEur } from '../logic/format.js';
 import { confirmSheet } from './dialog.js';
 import { pinPad, askNewPin } from './pinpad.js';
 import { esc, h, mount, bindActions } from './dom.js';
@@ -27,6 +30,13 @@ function catSection(categories, type, title) {
     <div class="catrow" style="border:0"><button class="addcat" data-act="newcat" data-v="${type}">+ Nova categoria</button></div></div></div>`;
 }
 
+const ptDate = iso => iso.split('-').reverse().join('/');
+function openingRow(p) {
+  const has = hasOpening(p);
+  return `<div class="openrow"><span class="ol">Saldo inicial</span><span class="ov${has && p.openingCents < 0 ? ' neg' : ''}">${has ? `<span class="nw">${esc(formatEur(p.openingCents))}</span> <span class="nw">em ${esc(ptDate(p.openingDate))}</span>` : 'Não indicado'}</span>
+    <button data-act="opening">${has ? 'Alterar' : 'Indicar'}</button></div>`;
+}
+
 function view(ctx) {
   const state = ctx.store.getState();
   const me = state.profiles.find(p => p.id === ctx.profileId);
@@ -38,7 +48,7 @@ function view(ctx) {
     ${catSection(state.categories, 'out', 'Saídas')}${catSection(state.categories, 'in', 'Entradas')}
     </div><div class="ccol">
     <div class="sect"><h3>Perfis</h3><div class="card" style="padding:0 14px">
-      ${state.profiles.map(p => `<div class="catrow"><span><span class="av sm">${esc(initial(p.name))}</span>${esc(p.name)}${p.id === ctx.profileId ? '<span class="tag here">aberto</span>' : ''}</span><span class="acts"><button data-act="renprof" data-v="${esc(p.id)}">Renomear</button></span></div>`).join('')}
+      ${state.profiles.map(p => `<div class="catrow"><span><span class="av sm">${esc(initial(p.name))}</span>${esc(p.name)}${p.id === ctx.profileId ? '<span class="tag here">aberto</span>' : ''}</span><span class="acts"><button data-act="renprof" data-v="${esc(p.id)}">Renomear</button></span></div>${p.id === ctx.profileId ? openingRow(p) : ''}`).join('')}
       <div class="catrow" style="border:0"><button class="addcat" data-act="newprof">+ Novo perfil</button></div></div></div>
     <div class="sect"><h3>Cópia de segurança e conta</h3>
       <button class="btn plain" data-act="export">Exportar cópia</button>
@@ -64,6 +74,10 @@ export function render(ctx, root) {
       if (category) openCategorySheet(ctx, { category });
     },
     delcat: el => deleteCategory(ctx, el.dataset.cat),
+    opening: () => {
+      const p = ctx.store.getState().profiles.find(x => x.id === ctx.profileId);
+      if (p) openOpeningSheet(ctx, p);
+    },
     renprof: el => renameProfile(ctx, el.dataset.v),
     newprof: () => newProfile(ctx, root),
     export: () => exportBackup(ctx),
