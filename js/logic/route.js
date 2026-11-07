@@ -26,7 +26,7 @@ export function parseRoute(hash, today) {
     return fallback;
   }
   if (casa) return fallback;
-  if ((head === 'categorias' || head === 'registar') && a === undefined) return { name: head, casa: false };
+  if ((head === 'categorias' || head === 'registar' || head === 'exportar') && a === undefined) return { name: head, casa: false };
   if (head === 'editar' && a && b === undefined) {
     const moveId = dec(a);
     if (moveId) return { name: 'editar', moveId, casa: false };
@@ -42,6 +42,7 @@ export function routeHash(route) {
     case 'ano': return `#/ano/${route.year}${route.mode === 'poupanca' ? '/poupanca' : ''}${casa}`;
     case 'categorias': return '#/categorias';
     case 'registar': return '#/registar';
+    case 'exportar': return '#/exportar';
     case 'editar': return `#/editar/${encodeURIComponent(route.moveId)}`;
     default: return `#/mes/${route.ym}${casa}`;
   }

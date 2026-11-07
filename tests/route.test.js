@@ -29,3 +29,12 @@ test('more routes', () => {
   for (const h of ['#/mes/2026-10','#/mes/2026-10/entradas','#/ano/2026','#/ano/2026/casa','#/ano/2026/poupanca/casa','#/registar','#/editar/xyz'])
     assert.equal(routeHash(parseRoute(h, t)), h);
 });
+
+test('export route (wide screens only)', () => {
+  const t = '2026-11-06';
+  assert.deepEqual(parseRoute('#/exportar', t), {name:'exportar', casa:false});
+  assert.equal(routeHash({name:'exportar', casa:false}), '#/exportar');
+  assert.equal(routeHash(parseRoute('#/exportar', t)), '#/exportar');
+  for (const bad of ['#/exportar/x', '#/exportar/casa'])
+    assert.deepEqual(parseRoute(bad, t), {name:'mes', ym:'2026-11', casa:false}, bad);
+});

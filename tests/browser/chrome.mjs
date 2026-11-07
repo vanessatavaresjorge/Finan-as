@@ -167,8 +167,12 @@ export async function launch() {
         if (!nodeId) throw new Error(`Elemento não encontrado: ${selector}`);
         await page.send('DOM.setFileInputFiles', { nodeId, files: [path.resolve(filePath)] });
       },
+      // Window size; below 1024 px it behaves as a phone (mobile viewport).
+      setViewport(width, height) {
+        return page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 1024 });
+      },
       async screenshot(file, { width = 500, height = 1000 } = {}) {
-        await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true });
+        await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 1024 });
         const { data } = await page.send('Page.captureScreenshot', { format: 'png' });
         writeFileSync(file, Buffer.from(data, 'base64'));
       },

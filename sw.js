@@ -1,7 +1,7 @@
 // Keeps the app files so it opens without internet; refreshes them when online.
 // Only same-origin GETs and the Firebase SDK files are touched: Firestore and Auth traffic never is.
 // VERSION is a hash of the app files: run `npm run bump` after any change (a test checks it).
-const VERSION = 'ee33a3d74d44';
+const VERSION = '7ef9fee3b566';
 const CACHE = 'financas-' + VERSION;
 const FILES = [
   './index.html',
@@ -29,7 +29,9 @@ const FILES = [
   './js/ui/catsheet.js',
   './js/ui/dialog.js',
   './js/ui/dom.js',
+  './js/ui/export.js',
   './js/ui/form.js',
+  './js/ui/layout.js',
   './js/ui/lock.js',
   './js/ui/login.js',
   './js/ui/month.js',

@@ -195,3 +195,26 @@ input { font:inherit; color:inherit; }
 .authform .namein { margin-top:0; }
 .authform .forgot { margin-top:14px; align-self:center; }
 .error.ok { color:var(--in); }
+
+/* ---------- Wide window (from 1024 px): sidebar, content up to 1400 px, right drawer ---------- */
+.wide #app.has-side { max-width:none; margin:0; border:0; flex-direction:row; }
+.wide .tabs, .wide .fab { display:none; }
+.wide #app.has-side > .screen { flex:1; min-width:0; max-width:1400px; margin:0 auto; }
+.wide #app.has-side > .screen .scroll { padding-bottom:28px; }
+.sidebar { width:200px; flex:none; background:#efe8dc; padding:18px 12px; display:flex; flex-direction:column; gap:6px; }
+.sidebar .brand { font-size:18px; margin-bottom:10px; }
+.sidebar .nav { text-align:left; padding:9px 12px; border-radius:8px; color:var(--muted); font-size:15px; }
+.sidebar .nav.on { background:var(--card); color:var(--text); font-weight:600; }
+.sidebar .grow { flex:1; }
+.sidebar .who { font-size:13px; color:var(--muted); margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sidebar .add { margin-top:0; padding:10px 12px; border-radius:10px; font-size:15px; }
+.backdrop { position:fixed; inset:0; background:rgba(42,38,34,.25); z-index:4; }
+.drawer { position:fixed; top:0; right:0; bottom:0; width:420px; max-width:100%; display:flex; flex-direction:column; background:var(--card); box-shadow:-8px 0 28px rgba(42,38,34,.14); z-index:4; }
+.drawer-hd { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 22px 6px; }
+.drawer-hd button { color:var(--accent); font-size:15px; padding:6px 0 6px 10px; }
+.drawer > .screen { flex:1; min-height:0; }
+.drawer .scroll { padding:8px 22px 24px; }
+/* Sheets: category sheet as a right drawer, confirmations as a centred dialog */
+.wide .shade { align-items:center; justify-content:center; }
+.wide .sheet:not(.side) { width:calc(100% - 32px); max-width:440px; border-radius:18px; padding-bottom:18px; }
+.wide .sheet.side { position:absolute; top:0; right:0; bottom:0; width:420px; max-height:none; border-radius:0; padding:22px 22px 18px; box-shadow:-8px 0 28px rgba(42,38,34,.14); }

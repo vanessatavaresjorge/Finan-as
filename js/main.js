@@ -14,6 +14,8 @@ import * as monthScreen from './ui/month.js';
 import * as yearScreen from './ui/year.js';
 import { signOutBlocked, PENDING_MSG } from './logic/signout.js';
 import * as categoriesScreen from './ui/categories.js';
+import * as exportScreen from './ui/export.js';
+import { isWide, onWideChange } from './ui/layout.js';
 
 const app = document.getElementById('app');
 const params = new URLSearchParams(location.search);
@@ -31,8 +33,12 @@ const SCREENS = {
   categorias: categoriesScreen,
   registar: formScreen,
   editar: formScreen,
+  exportar: exportScreen,
 };
-const TAB_OF = { mes: 'mes', cat: 'mes', entradas: 'mes', ano: 'ano', categorias: 'categorias' };
+const TAB_OF = { mes: 'mes', cat: 'mes', entradas: 'mes', ano: 'ano', categorias: 'categorias', exportar: 'exportar' };
+// On a wide window these routes open in the drawer, over the last other route.
+const isForm = route => route.name === 'registar' || route.name === 'editar';
+const currentMonth = () => ({ name: 'mes', ym: todayISO().slice(0, 7), casa: false });
 
 const S = {
   stage: 'loading', // loading | load-failed | login | first-profile | pick | lock | app
@@ -46,6 +52,9 @@ const S = {
   lastCasa: false,
   screen: null,
   shell: null,
+  wide: isWide(),
+  bgRoute: null, // last route that is not a form: shown behind the drawer on a wide window
+  formRoot: null, // root of the open register/edit form, moved (not re-rendered) on resize
   stageKey: null, // what the login/profile/lock screen shown depends on (re-render when it changes)
   loadTimer: 0,
   hiddenAt: null,
@@ -84,6 +93,8 @@ function stageCtx() {
 function renderStage() {
   S.shell = null;
   S.screen = null;
+  S.formRoot = null;
+  app.classList.remove('has-side');
   const root = document.createElement('main');
   root.className = 'screen';
   app.replaceChildren(root);
@@ -210,52 +221,158 @@ function onVisibility() {
   for (const el of document.querySelectorAll('body > .cover')) el.remove();
 }
 
-// ---------- App shell: screen, + button, tabs ----------
+// ---------- App shell: screen, + button, tabs (and, on a wide window, sidebar and drawer) ----------
 function buildShell() {
-  mount(app, `<main class="screen"></main>
+  const side = S.wide ? `<nav class="sidebar">
+      <b class="brand">Finanças</b>
+      <button class="nav" data-act="shell-tab" data-v="mes">Mês</button>
+      <button class="nav" data-act="shell-tab" data-v="ano">Ano</button>
+      <button class="nav" data-act="shell-tab" data-v="categorias">Categorias</button>
+      <button class="nav" data-act="shell-tab" data-v="exportar">Exportar Excel</button>
+      <div class="grow"></div>
+      <div class="who"></div>
+      <button class="btn add" data-act="shell-add">+ Registar</button>
+    </nav>` : '';
+  mount(app, `${side}<main class="screen"></main>
     <button class="fab" data-act="shell-add" aria-label="Registar movimento">+</button>
     <nav class="tabs">
       <button data-act="shell-tab" data-v="mes">Mês</button>
       <button data-act="shell-tab" data-v="ano">Ano</button>
       <button data-act="shell-tab" data-v="categorias">Categorias</button>
     </nav>`);
-  S.shell = { fab: app.querySelector('.fab'), tabs: [...app.querySelectorAll('.tabs button')] };
+  app.classList.toggle('has-side', S.wide);
+  const sidebar = app.querySelector('.sidebar');
+  S.shell = {
+    fab: app.querySelector('.fab'),
+    tabs: [...app.querySelectorAll('.tabs button'), ...app.querySelectorAll('.sidebar .nav')],
+    who: sidebar?.querySelector('.who') ?? null,
+  };
   bindActions(app.querySelector('.tabs'), { 'shell-tab': el => openTab(el.dataset.v) });
   bindActions(S.shell.fab, { 'shell-add': () => go({ name: 'registar', casa: false }) });
+  if (sidebar) bindActions(sidebar, {
+    'shell-tab': el => openTab(el.dataset.v),
+    'shell-add': () => go({ name: 'registar', casa: false }),
+  });
 }
 
 function openTab(tab) {
   if (tab === 'mes') go({ name: 'mes', ym: S.lastYm, casa: S.lastCasa });
   else if (tab === 'ano') go({ name: 'ano', year: Number(S.lastYm.slice(0, 4)), mode: 'gastos', casa: S.lastCasa });
+  else if (tab === 'exportar') go({ name: 'exportar', casa: false });
   else go({ name: 'categorias', casa: false });
 }
 
-function makeCtx() {
+function makeCtx(route = S.route) {
   return {
     store: S.store, device: S.device, account: S.account, profileId: S.profileId,
-    route: S.route, go, rerender, demo: DEMO, showError,
+    route, go, rerender, demo: DEMO, showError, wide: S.wide,
     // Demo only: lets the UI test show Terminar sessão.
     showSignOut: DEMO && params.get('signout') === '1',
   };
 }
 
-// Every render gets a fresh root, so listeners a screen binds on it never pile up.
-function renderScreen({ keepScroll = false } = {}) {
-  if (S.stage !== 'app' || !S.shell) return;
-  const r = S.route;
-  for (const b of S.shell.tabs) b.classList.toggle('on', b.dataset.v === TAB_OF[r.name]);
-  S.shell.fab.hidden = r.name === 'registar' || r.name === 'editar';
-  const old = app.querySelector('main.screen');
+const backgroundRoute = () => S.bgRoute ?? currentMonth();
+const drawerOpen = () => !!app.querySelector(':scope > .drawer');
+
+// Marks the open tab, hides the + button on the form, shows the open profile in the sidebar.
+function drawShell(shown) {
+  for (const b of S.shell.tabs) b.classList.toggle('on', b.dataset.v === TAB_OF[shown.name]);
+  S.shell.fab.hidden = isForm(S.route);
+  if (S.shell.who) {
+    const p = S.store.getState().profiles.find(x => x.id === S.profileId);
+    S.shell.who.textContent = `Perfil: ${p?.name ?? ''}`;
+  }
+}
+
+// Renders `route` in a fresh screen root (listeners a screen binds on it never pile up).
+function paint(route, keepScroll) {
+  const old = app.querySelector(':scope > main.screen');
   const scrollTop = keepScroll ? old.querySelector('.scroll')?.scrollTop ?? 0 : 0;
   const root = document.createElement('main');
   root.className = 'screen';
   old.replaceWith(root);
-  S.screen = SCREENS[r.name];
-  S.screen.render(makeCtx(), root);
+  const screen = SCREENS[route.name];
+  screen.render(makeCtx(route), root);
   if (scrollTop) { const sc = root.querySelector('.scroll'); if (sc) sc.scrollTop = scrollTop; }
+  return { screen, root };
 }
 
-function rerender() { renderScreen({ keepScroll: true }); }
+function openDrawer(route, formRoot) {
+  let drawer = app.querySelector(':scope > .drawer');
+  if (!drawer) {
+    const frag = h(`<div class="backdrop" data-act="drawer-cancel"></div>
+      <aside class="drawer" role="dialog" aria-modal="true">
+        <div class="drawer-hd"><span class="title"></span><button type="button" data-act="drawer-cancel">Cancelar</button></div>
+      </aside>`);
+    const [backdrop, aside] = frag.children;
+    bindActions(backdrop, { 'drawer-cancel': cancelDrawer });
+    bindActions(aside.querySelector('.drawer-hd'), { 'drawer-cancel': cancelDrawer });
+    // sheets already open (a category sheet) stay above the drawer
+    app.querySelector(':scope > .shade') ? app.insertBefore(frag, app.querySelector(':scope > .shade')) : app.append(frag);
+    drawer = aside;
+  }
+  const title = route.name === 'editar' ? 'Editar movimento' : 'Registar movimento';
+  drawer.querySelector('.title').textContent = title;
+  drawer.setAttribute('aria-label', title);
+  const old = drawer.querySelector(':scope > .screen');
+  if (old !== formRoot) old ? old.replaceWith(formRoot) : drawer.append(formRoot);
+}
+
+function closeDrawer() {
+  for (const el of app.querySelectorAll(':scope > .drawer, :scope > .backdrop')) el.remove();
+}
+
+function cancelDrawer() { go(backgroundRoute()); }
+
+// Esc closes the drawer (a sheet open over it handles Esc itself and closes first).
+function onKey(e) {
+  if (e.key !== 'Escape' || S.stage !== 'app' || !drawerOpen() || app.querySelector(':scope > .shade')) return;
+  cancelDrawer();
+}
+
+// reuseForm: the root of a form already typed in (window resized), moved instead of re-rendered.
+function renderScreen({ keepScroll = false, reuseForm = null } = {}) {
+  if (S.stage !== 'app' || !S.shell) return;
+  const r = S.route;
+  // Exportar Excel exists only on a wide window.
+  if (r.name === 'exportar' && !S.wide) { location.replace(routeHash(currentMonth())); return; }
+  const form = isForm(r);
+  if (form && S.wide) {
+    const bg = backgroundRoute();
+    drawShell(bg);
+    S.screen = paint(bg, keepScroll).screen;
+    let root = reuseForm;
+    if (!root) {
+      root = document.createElement('main');
+      root.className = 'screen';
+    }
+    openDrawer(r, root);
+    if (!reuseForm) formScreen.render(makeCtx(r), root);
+    S.formRoot = root;
+    return;
+  }
+  closeDrawer();
+  drawShell(r);
+  if (reuseForm) {
+    app.querySelector(':scope > main.screen').replaceWith(reuseForm);
+    S.screen = formScreen;
+    S.formRoot = reuseForm;
+    return;
+  }
+  const { screen, root } = paint(r, keepScroll);
+  S.screen = screen;
+  S.formRoot = form ? root : null;
+}
+
+// Store updates and screens asking to be redrawn. With the drawer open only the screen behind it
+// is redrawn: the form keeps what was typed.
+function rerender() {
+  if (S.stage === 'app' && S.shell && drawerOpen()) {
+    const bg = backgroundRoute();
+    drawShell(bg);
+    S.screen = paint(bg, true).screen;
+  } else renderScreen({ keepScroll: true });
+}
 
 function go(route) {
   const hash = routeHash(route);
@@ -269,10 +386,25 @@ function onRoute() {
   renderScreen();
 }
 
-// The Mês and Ano tabs go back to the month (and Casa view) last shown.
+// The Mês and Ano tabs go back to the month (and Casa view) last shown; the drawer opens over the
+// last route that is not a form.
 function remember(route) {
+  if (!isForm(route)) S.bgRoute = route;
   if (route.ym) { S.lastYm = route.ym; S.lastCasa = route.casa; }
   else if (route.name === 'ano') S.lastCasa = route.casa;
+}
+
+// The window crossed 1024 px: rebuild the shell for the new layout. Other screens are redrawn;
+// an open form is moved as it is, so what was typed survives. Open sheets stay open.
+function onWide(wide) {
+  S.wide = wide;
+  document.body.classList.toggle('wide', wide);
+  if (S.stage !== 'app' || !S.shell) return;
+  const form = isForm(S.route) && S.formRoot?.isConnected ? S.formRoot : null;
+  const sheets = [...app.querySelectorAll(':scope > .shade')];
+  buildShell();
+  app.append(...sheets);
+  renderScreen({ reuseForm: form });
 }
 
 // ---------- Boot ----------
@@ -286,6 +418,9 @@ function useStore(store) {
 async function boot() {
   navigator.storage?.persist?.().catch(() => {});
   window.addEventListener('hashchange', onRoute);
+  document.addEventListener('keydown', onKey);
+  document.body.classList.toggle('wide', S.wide);
+  onWideChange(onWide);
   document.addEventListener('visibilitychange', onVisibility);
   remember(S.route);
   renderStage();

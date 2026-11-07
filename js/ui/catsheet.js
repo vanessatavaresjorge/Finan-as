@@ -12,7 +12,7 @@ export function openCategorySheet(ctx, { type, category = null }) {
     let savings = !!category?.savings;
     let busy = false;
 
-    const shade = h(`<div class="shade" data-act="sheet-cancel"><div class="sheet" role="dialog" aria-modal="true">
+    const shade = h(`<div class="shade" data-act="sheet-cancel"><div class="sheet side" role="dialog" aria-modal="true">
       <div class="title">${editing ? 'Editar categoria' : `Nova categoria de ${kind === 'out' ? 'saída' : 'entrada'}`}</div>
       <div class="card namein"><span class="e">${esc(icon)}</span><input id="catname" placeholder="Nome" value="${esc(category?.name ?? '')}" maxlength="30" autocomplete="off"></div>
       <div class="label" style="margin-top:16px">Símbolo</div>
