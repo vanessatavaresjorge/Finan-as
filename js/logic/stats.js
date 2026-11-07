@@ -1,3 +1,6 @@
+import { balanceAt, houseBalance } from './balance.js';
+import { todayISO } from './format.js';
+
 export function categoryOf(categories, id, type = 'out') {
   return categories.find(c => c.id === id)
     || { id, name: 'Sem categoria', icon: '❔', type, savings: false };
@@ -15,6 +18,15 @@ export function periodStats(moves, categories, prefix, pred = () => true) {
   }
   const saved = inn - out + inv;
   return { inn, out, inv, saved, rate: inn > 0 ? saved / inn : null };
+}
+
+function balanceModel(moves, profiles, view, ym) {
+  if (view === 'casa') {
+    const h = houseBalance(moves, profiles, ym);
+    return { total: h.total, split: h.split, hasOpening: profiles.length > 0 && profiles.every(p => Number.isInteger(p.openingCents) && !!p.openingDate) };
+  }
+  const p = profiles.find(x => x.id === view);
+  return { total: p ? balanceAt(moves, p, ym) : null, split: null, hasOpening: !!p && Number.isInteger(p.openingCents) && !!p.openingDate };
 }
 
 export function monthModel({ moves, categories, profiles, ym, view }) {
@@ -58,7 +70,7 @@ export function monthModel({ moves, categories, profiles, ym, view }) {
         categoryId: m.categoryId, icon: c.icon, categoryName: c.name };
     });
 
-  return { totals, split, categories: cats, moves: list };
+  return { totals, split, categories: cats, moves: list, balance: balanceModel(moves, profiles, view, ym) };
 }
 
 export function niceScale(maxCents) {
@@ -80,12 +92,14 @@ export function percentScale(rates) {
   };
 }
 
-export function yearModel({ moves, categories, profiles, year, view, mode, filter = 'all' }) {
+export function yearModel({ moves, categories, profiles, year, view, mode, filter = 'all', today = todayISO() }) {
   const casa = view === 'casa';
   const inView = m => casa || m.profileId === view;
   const yp = `${year}-`;
   const mp = i => `${year}-${String(i + 1).padStart(2, '0')}`;
   const idx = [...Array(12).keys()];
+  const nowYm = today.slice(0, 7);
+  const balance = balanceModel(moves, profiles, view, nowYm.startsWith(yp) ? nowYm : `${year}-12`);
 
   if (mode === 'poupanca') {
     const stats = (prefix, pred) => periodStats(moves, categories, prefix, pred);
@@ -101,7 +115,7 @@ export function yearModel({ moves, categories, profiles, year, view, mode, filte
       return { name: p.name, saved: s.saved, rate: s.rate };
     };
     return {
-      rate: y.rate, saved: y.saved, inn: y.inn, inv: y.inv, best, months,
+      balance, rate: y.rate, saved: y.saved, inn: y.inn, inv: y.inv, best, months,
       split: casa ? profiles.map(p => person(yp, p)) : null,
       monthSplit: casa ? idx.map(i => profiles.map(p => person(mp(i), p))) : null,
       scale: percentScale(months.map(m => m && m.rate)),
@@ -118,7 +132,7 @@ export function yearModel({ moves, categories, profiles, year, view, mode, filte
   months.forEach((cents, month) => { if (cents > 0 && (!highest || cents > highest.cents)) highest = { month, cents }; });
   const person = (prefix, p) => ({ name: p.name, cents: out(prefix, m => m.profileId === p.id) });
   return {
-    total, average: active ? total / active : null, highest, months,
+    balance, total, average: active ? total / active : null, highest, months,
     split: casa ? profiles.map(p => person(yp, p)) : null,
     monthSplit: casa ? idx.map(i => profiles.map(p => person(mp(i), p))) : null,
     scale: niceScale(Math.max(0, ...months)),

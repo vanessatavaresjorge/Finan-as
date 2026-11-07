@@ -31,3 +31,18 @@ test('casa year has per-person split and no notes', () => {
   assert.deepEqual(y.monthSplit[10], [{name:'Ana',saved:170000,rate:0.85},{name:'Rui',saved:80000,rate:0.8}]);
   assert.ok(!JSON.stringify(y).includes('pneus'));
 });
+
+test('year balance uses current month or December', async () => {
+  const { balanceAt } = await import('../js/logic/balance.js');
+  const ps = [{id:'a',name:'Ana',openingCents:100000,openingDate:'2025-01-01'},{id:'b',name:'Rui'}];
+  for (const mode of ['gastos', 'poupanca']) {
+    const y = yearModel({moves, categories, profiles: ps, year:2026, view:'a', mode, today:'2026-11-07'});
+    assert.equal(y.balance.total, balanceAt(moves, ps[0], '2026-11'));
+    assert.equal(y.balance.hasOpening, true);
+    const p = yearModel({moves, categories, profiles: ps, year:2025, view:'a', mode, today:'2026-11-07'});
+    assert.equal(p.balance.total, balanceAt(moves, ps[0], '2025-12'));
+  }
+  const c = yearModel({moves, categories, profiles: ps, year:2026, view:'casa', mode:'gastos', today:'2026-11-07'});
+  assert.equal(c.balance.split.length, 2);
+  assert.ok(!JSON.stringify(c).includes('segredo-b'));
+});

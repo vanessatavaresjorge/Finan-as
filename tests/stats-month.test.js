@@ -34,3 +34,17 @@ test('unknown category is shown as Sem categoria', () => {
   const m = monthModel({moves:[mv('a','out',500,'apagada','2026-11-05')], categories, profiles, ym:'2026-11', view:'a'});
   assert.deepEqual([m.categories[0].name, m.categories[0].icon, m.moves[0].categoryName], ['Sem categoria','❔','Sem categoria']);
 });
+
+test('balance in profile and casa views', async () => {
+  const { balanceAt } = await import('../js/logic/balance.js');
+  const ps = [{id:'a',name:'Ana',openingCents:100000,openingDate:'2026-10-31'},{id:'b',name:'Rui',openingCents:5000,openingDate:'2026-10-01'}];
+  const a = monthModel({moves, categories, profiles: ps, ym:'2026-11', view:'a'});
+  assert.deepEqual(a.balance, {total: balanceAt(moves, ps[0], '2026-11'), split: null, hasOpening: true});
+  assert.equal(a.balance.total, 100000 + 200000 - 30000 - 50000);
+  const c = monthModel({moves, categories, profiles: ps, ym:'2026-11', view:'casa'});
+  assert.deepEqual(c.balance.split.map(s => s.name), ['Ana','Rui']);
+  assert.equal(c.balance.hasOpening, true);
+  const c2 = monthModel({moves, categories, profiles, ym:'2026-11', view:'casa'});
+  assert.equal(c2.balance.hasOpening, false);
+  const json = JSON.stringify(c); assert.ok(!json.includes('pneus') && !json.includes('segredo-b'));
+});
