@@ -303,3 +303,16 @@ table.movs tr.none td { text-align:center; color:var(--muted); padding:22px 8px;
 .wide .ccol .sect + .sect { margin-top:14px; }
 .wide .ccol:last-child .sect:last-child .btn:last-of-type { border-bottom:0; }
 .wide .ccol .btn.plain[data-act="logout"] { color:var(--danger); }
+
+/* Exportar Excel on the wide window */
+.wexport .excard { margin-top:14px; padding:18px 20px; max-width:560px; }
+.wexport .extitle { margin:0 0 12px; font-size:13px; font-weight:500; color:var(--muted); }
+.wexport .exrow { display:flex; gap:24px; flex-wrap:wrap; }
+.wexport .expick { display:flex; align-items:center; gap:8px; font-size:15px; }
+.wexport .expick span { color:var(--muted); min-width:34px; }
+.wexport select { font:inherit; font-size:15px; padding:7px 10px; border:1px solid var(--cardb); border-radius:8px; background:var(--bg); color:var(--text); }
+.wexport .exinfo { margin:14px 0 0; font-size:14px; color:var(--muted); }
+.wexport .exerr { margin:14px 0 0; font-size:14px; color:var(--danger); }
+.wexport .exerr[hidden], .wexport .exinfo[hidden] { display:none; }
+.wexport .exbtn { width:auto; display:inline-block; padding:12px 22px; margin-top:16px; }
+.wexport .exbtn:disabled { opacity:.45; cursor:default; }
