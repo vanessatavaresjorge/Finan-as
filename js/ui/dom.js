@@ -1,4 +1,6 @@
 // Small DOM helpers shared by every screen.
+import { formatEur } from '../logic/format.js';
+
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ESC[c]);
@@ -32,3 +34,18 @@ export function bindActions(root, handlers) {
   root.addEventListener('click', onClick);
   return () => root.removeEventListener('click', onClick);
 }
+
+// ---------- Account balance pieces (Mês and Ano, phone and wide) ----------
+export const BALANCE_HINT = 'Indica o saldo inicial em Categorias para o saldo ficar certo.';
+
+export const balanceValue = b => (b.total === null ? '—' : formatEur(b.total));
+export const balanceNeg = b => b.total !== null && b.total < 0;
+
+// Casa: each person's balance ("—" for none), names and amounts only.
+export function balanceSplit(b) {
+  if (!b.split) return '';
+  return `<div class="split">${b.split.map(p => `${esc(p.name)} ${p.cents === null ? '—' : formatEur(p.cents)}`).join(' · ')}</div>`;
+}
+
+// Hint only in a profile view that has no opening balance.
+export const balanceHint = (b, casa) => (!casa && !b.hasOpening ? `<p class="balhint">${BALANCE_HINT}</p>` : '');

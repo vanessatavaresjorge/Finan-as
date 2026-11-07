@@ -230,7 +230,7 @@ input { font:inherit; color:inherit; }
 .wtop .monthnav .title { font-size:20px; min-width:170px; text-align:center; }
 .wtop .vseg { margin:0; font-size:14px; min-width:220px; }
 .wtop .vseg button { padding:6px 14px; }
-.kpis { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; }
+.kpis { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px; }
 .kpi { display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch; text-align:left; padding:14px 16px; }
 .kpi .label { display:block; margin-bottom:4px; }
 /* numbers are never cut: a bit smaller on the narrowest wide windows, and they wrap if still too long */
@@ -281,7 +281,7 @@ table.movs tr.none td { text-align:center; color:var(--muted); padding:22px 8px;
 .wyear .wtop .wleft { display:flex; align-items:center; gap:18px; }
 .wyear .yseg { margin:0; font-size:14px; }
 .wyear .yseg button { padding:6px 14px; }
-.wyear .kpis.k3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.wyear .kpis.k3 { grid-template-columns:repeat(4, minmax(0, 1fr)); }
 .wyear .kpiphrase { margin-top:-6px; }
 .wyear .fchips { margin:0; padding:0 0 4px; flex-wrap:wrap; overflow:visible; }
 .wymid { flex:1; display:flex; gap:14px; min-height:470px; align-items:stretch; }
@@ -316,3 +316,9 @@ table.movs tr.none td { text-align:center; color:var(--muted); padding:22px 8px;
 .wexport .exerr[hidden], .wexport .exinfo[hidden] { display:none; }
 .wexport .exbtn { width:auto; display:inline-block; padding:12px 22px; margin-top:16px; }
 .wexport .exbtn:disabled { opacity:.45; cursor:default; }
+
+/* Account balance */
+.balcard { display:block; margin-top:10px; padding:11px 13px; text-align:left; }
+.balcard b { display:block; font-size:18px; font-weight:600; margin-top:2px; }
+.balcard b.neg { color:var(--danger); }
+.balhint { font-size:12px; color:var(--muted); line-height:1.35; margin:4px 0 0; }

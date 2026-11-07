@@ -26,7 +26,7 @@ try {
 
   // ---- Year, Gastos ----
   assert.ok(await chrome.eval(`document.body.classList.contains('wide')`));
-  assert.equal(await chrome.eval(`document.querySelectorAll('.wyear .kpis .kpi').length`), 3);
+  assert.equal(await chrome.eval(`document.querySelectorAll('.wyear .kpis .kpi').length`), 4);
   assert.equal(await chrome.eval(`document.querySelectorAll('.wyear .wtop .yseg button, .wyear .wtop .vseg button').length`), 4);
   assert.ok(await chrome.eval(`!!document.querySelector('.wyear .fchips')`));
   const mid = await chrome.eval(rect('.wymid'));

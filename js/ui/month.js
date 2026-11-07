@@ -2,7 +2,7 @@
 import { formatEur, formatPct, shortDate, monthTitle, addMonths, todayISO } from '../logic/format.js';
 import { parseRoute } from '../logic/route.js';
 import { monthModel, yearModel, categoryOf } from '../logic/stats.js';
-import { esc, mount, bindActions, viewSeg } from './dom.js';
+import { esc, mount, bindActions, viewSeg, balanceValue, balanceNeg, balanceSplit, balanceHint } from './dom.js';
 import { barChart, euroTick } from './chart.js';
 
 const eur = formatEur;
@@ -24,6 +24,7 @@ function savePhrase(t) {
   const inv = t.inv > 0 ? `, incluindo ${eur(t.inv)} em categorias de poupança` : '';
   return { text: `Poupaste ${eur(t.saved)} dos ${eur(t.inn)} que entraram${inv}.`, negative: false };
 }
+const balTitle = ym => (ym === todayISO().slice(0, 7) ? 'Em conta (fim do mês)' : 'Em conta no fim do mês');
 const meterWidth = t => Math.max(0, Math.min(1, t.rate ?? 0)) * 100;
 
 function saveCard(t, split) {
@@ -74,6 +75,7 @@ function monthView(ctx, ym, casa) {
       ${casa ? `<div class="card">${entrou}</div>` : `<button class="card" data-act="entradas">${entrou}</button>`}
       <div class="card"><span class="label">Sobrou</span><b class="num"${t.left < 0 ? ' style="color:var(--danger)"' : ''}>${eur(t.left)}</b>${sp(p => eur(p.left))}</div>
     </div>
+    <div class="card balcard"><span class="label">${balTitle(ym)}</span><b class="num${balanceNeg(model.balance) ? ' neg' : ''}">${balanceValue(model.balance)}</b>${balanceSplit(model.balance)}${balanceHint(model.balance, casa)}</div>
     ${saveCard(t, split)}
     ${list}
     ${!casa && model.moves.length ? `<div class="sech"><h3>Movimentos</h3><span>${model.moves.length}</span></div>
@@ -178,8 +180,10 @@ function wideView(ctx, route, casa) {
         : `<button class="card kpi${isIn ? ' on' : ''}" data-act="entradas"${isIn ? ' aria-pressed="true"' : ''}>${entrou}</button>`}
       <div class="card kpi"><span class="label">Sobrou</span><b class="num${t.left < 0 ? ' neg' : ''}">${eur(t.left)}</b>${sp(p => eur(p.left))}</div>
       ${wideSaveKpi(t, split)}
+      <div class="card kpi"><span class="label">${balTitle(ym)}</span><b class="num${balanceNeg(model.balance) ? ' neg' : ''}">${balanceValue(model.balance)}</b>${balanceSplit(model.balance)}</div>
     </div>
     ${widePhrase(t, split)}
+    ${balanceHint(model.balance, casa).replace('class="balhint"', 'class="kpiphrase"')}
     <div class="wmid">
       <div class="card wcats"><div class="ct">Categorias</div>${cats}</div>
       <div class="card wchart"><div class="ct">Saídas em ${year}</div>${chart}</div>

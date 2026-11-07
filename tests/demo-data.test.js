@@ -52,3 +52,12 @@ test('demo data: other dates', () => {
   assert.ok(d.moves.every(m => m.date <= '2027-01-01' && m.date >= '2026-02-01'));
   assert.ok(d.moves.some(m => m.date === '2027-01-01'));
 });
+
+test('demo data: profile A has an opening balance, profile B none', () => {
+  const d = demoData(today);
+  const [a, b] = d.profiles;
+  assert.equal(a.openingCents, 150000);
+  assert.equal(a.openingDate, '2025-11-30');
+  assert.equal(b.openingCents, undefined);
+  assert.equal(b.openingDate, undefined);
+});

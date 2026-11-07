@@ -2,6 +2,7 @@
 // Always the same for the same `today` (seeded generator). Notes are plain generic words.
 import { DEFAULT_CATEGORIES, nextOrder } from './logic/categories.js';
 import { addMonths } from './logic/format.js';
+import { lastDay } from './logic/balance.js';
 
 function seeded(seed) {
   return () => {
@@ -17,7 +18,8 @@ export function demoData(today) {
   const categories = DEFAULT_CATEGORIES.map(c => ({ ...c }));
   categories.push({ id: 'inv', name: 'Investimentos', type: 'out', icon: '📈', savings: true, order: nextOrder(categories) });
   const profiles = [
-    { id: 'a', name: 'Perfil A', pinHash: null, pinSalt: null, pinIter: null },
+    { id: 'a', name: 'Perfil A', pinHash: null, pinSalt: null, pinIter: null,
+      openingCents: 150000, openingDate: lastDay(addMonths(today.slice(0, 7), -12)) },
     { id: 'b', name: 'Perfil B', pinHash: null, pinSalt: null, pinIter: null },
   ];
 

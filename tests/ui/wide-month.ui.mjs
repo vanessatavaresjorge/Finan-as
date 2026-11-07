@@ -30,11 +30,11 @@ try {
   // ---- KPI cards ----
   const t = A.totals;
   assert.deepEqual((await chrome.eval(kpis)).map(nb),
-    [formatEur(t.out), formatEur(t.inn), formatEur(t.left), formatPct(t.rate)].map(nb));
-  assert.deepEqual(await chrome.eval(all('.kpis .kpi > .label')), ['Saiu', 'Entrou', 'Sobrou', 'Taxa de poupança']);
+    [formatEur(t.out), formatEur(t.inn), formatEur(t.left), formatPct(t.rate), formatEur(A.balance.total)].map(nb));
+  assert.deepEqual(await chrome.eval(all('.kpis .kpi > .label')), ['Saiu', 'Entrou', 'Sobrou', 'Taxa de poupança', 'Em conta (fim do mês)']);
   // compact KPI row; the savings phrase is a full-width line under it, fully readable
   const kpiH = await chrome.eval(all('.kpis .kpi', 'e.getBoundingClientRect().height'));
-  assert.ok(kpiH.length === 4 && kpiH.every(h => h <= 110), `cartões altos: ${kpiH}`);
+  assert.ok(kpiH.length === 5 && kpiH.every(h => h <= 110), `cartões altos: ${kpiH}`);
   assert.match(await chrome.eval(`document.querySelector('.kpiphrase').textContent`), /^Poupaste .* dos .* que entraram/);
   assert.equal(await chrome.eval(`(() => { const e = document.querySelector('.kpiphrase'); const r = e.getBoundingClientRect();
     return getComputedStyle(e).display !== 'none' && r.height > 0 && r.bottom <= innerHeight && e.scrollWidth <= e.clientWidth; })()`), true);
