@@ -8,6 +8,7 @@ import { openCategorySheet } from './catsheet.js';
 import { confirmSheet } from './dialog.js';
 import { pinPad, askNewPin } from './pinpad.js';
 import { esc, h, mount, bindActions } from './dom.js';
+import { signOutBlocked, PENDING_MSG } from '../logic/signout.js';
 
 // Live binding read by main.js: true while a keypad flow is on screen.
 export let keepOnUpdate = false;
@@ -42,7 +43,7 @@ function view(ctx) {
       <button class="btn plain" data-act="import"${importing ? ' disabled' : ''}>${importing ? 'A importar…' : 'Importar cópia'}</button>
       <input type="file" accept="application/json,.json" hidden>
       <button class="btn plain" data-act="code">Mudar código de ${esc(me?.name ?? '')}</button>
-      ${ctx.demo ? '' : `<button class="btn plain" data-act="logout">Terminar sessão</button>
+      ${ctx.demo && !ctx.showSignOut ? '' : `<button class="btn plain" data-act="logout">Terminar sessão</button>
       <p class="label" style="text-align:center;margin-top:8px">Conta da casa: ${esc(email ?? '')}</p>`}
     </div>
   </div>`;
@@ -305,6 +306,7 @@ async function importFile(ctx, input) {
 
 // ---------- Sign-out ----------
 async function logout(ctx) {
+  if (signOutBlocked(ctx.store)) { toast(ctx, PENDING_MSG); return; }
   const ok = await confirmSheet({ message: 'Terminar sessão neste aparelho?', ok: 'Terminar sessão' });
   if (!ok) return;
   try {

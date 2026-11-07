@@ -4,17 +4,19 @@ import { mergeProfilesForImport } from './backup.js';
 const GONE = 'Este registo já não existe.';
 const clone = x => structuredClone(x);
 
-export function createMemoryStore(initial = {}, onError = () => {}) {
+// options.simulatePending (demo only) adds setPending(bool) to fake queued, unsent changes.
+export function createMemoryStore(initial = {}, onError = () => {}, options = {}) {
   let profiles = clone(initial.profiles ?? []);
   let categories = clone(initial.categories ?? []);
   let moves = clone(initial.moves ?? []);
   const subs = new Set();
+  let pending = false;
 
   const snapshot = () => ({
     profiles: clone(profiles),
     categories: clone(categories).sort((a, b) => a.order - b.order),
     moves: clone(moves),
-    pending: false,
+    pending,
     ready: true,
   });
   const notify = () => { for (const fn of [...subs]) fn(snapshot()); };
@@ -26,6 +28,7 @@ export function createMemoryStore(initial = {}, onError = () => {}) {
   const patchItem = (list, id, patch) => { Object.assign(find(list, id), clone(patch), { id }); notify(); };
 
   return {
+    ...(options.simulatePending ? { setPending(v) { pending = !!v; notify(); } } : {}),
     subscribe(fn) {
       subs.add(fn);
       fn(snapshot());

@@ -12,6 +12,7 @@ import * as lockScreen from './ui/lock.js';
 import * as formScreen from './ui/form.js';
 import * as monthScreen from './ui/month.js';
 import * as yearScreen from './ui/year.js';
+import { signOutBlocked, PENDING_MSG } from './logic/signout.js';
 import * as categoriesScreen from './ui/categories.js';
 
 const app = document.getElementById('app');
@@ -106,6 +107,7 @@ function renderLoadFailed(root) {
   bindActions(root, {
     retry: () => location.reload(),
     logout: () => {
+      if (signOutBlocked(S.store)) { showError(PENDING_MSG); return; }
       S.device?.setLastProfile(null);
       // Signs out, clears this device's copy of the data and reloads the page.
       if (S.account) S.account.logoutAndWipe().catch(e => showError(e.message));
@@ -232,6 +234,8 @@ function makeCtx() {
   return {
     store: S.store, device: S.device, account: S.account, profileId: S.profileId,
     route: S.route, go, rerender, demo: DEMO, showError,
+    // Demo only: lets the UI test show Terminar sessão.
+    showSignOut: DEMO && params.get('signout') === '1',
   };
 }
 
@@ -300,8 +304,8 @@ async function boot() {
     }
     const data = demoData(todayISO());
     for (const p of data.profiles) Object.assign(p, await hashPin(DEMO_PIN));
-    const store = createMemoryStore(data, showError);
-    window.__demo = { store };
+    const store = createMemoryStore(data, showError, { simulatePending: true });
+    window.__demo = { store, setPending: v => store.setPending(v) };
     useStore(store);
     return;
   }
