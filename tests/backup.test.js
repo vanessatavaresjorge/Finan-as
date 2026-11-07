@@ -45,7 +45,7 @@ test('extra fields are dropped', () => {
 test('import keeps existing codes', () => {
   const merged = mergeProfilesForImport([{id:'a',name:'Ana',pinHash:'h',pinSalt:'s',pinIter:1},{id:'b',name:'Rui',pinHash:'x',pinSalt:'y',pinIter:1}],
                                         [{id:'a',name:'Ana M'},{id:'c',name:'Novo'}]);
-  assert.deepEqual(merged, [{id:'a',name:'Ana M',pinHash:'h',pinSalt:'s',pinIter:1},{id:'c',name:'Novo',pinHash:null,pinSalt:null,pinIter:null}]);
+  assert.deepEqual(merged, [{id:'a',name:'Ana M',pinHash:'h',pinSalt:'s',pinIter:1,openingCents:null,openingDate:null},{id:'c',name:'Novo',pinHash:null,pinSalt:null,pinIter:null,openingCents:null,openingDate:null}]);
 });
 test('file name', () => assert.equal(backupFileName(new Date(2026, 10, 6)), 'financas-copia-2026-11-06.json'));
 test('auth messages', () => {
@@ -88,4 +88,35 @@ test('accepts the id formats the app creates', async () => {
   }
   assert.equal(parseBackup(JSON.stringify(buildBackup(demo))).ok, true);
   assert.equal(parseBackup(JSON.stringify(buildBackup({...data, categories: DEFAULT_CATEGORIES}))).ok, true);
+});
+
+const withOpen = { ...data, profiles: [{ ...data.profiles[0], openingCents: -5000, openingDate: '2026-10-31' }, data.profiles[1]] };
+test('opening balance round trip; pins never exported', () => {
+  const b = buildBackup(withOpen);
+  assert.deepEqual(b.profiles[0], { id:'a', name:'Ana', openingCents:-5000, openingDate:'2026-10-31' });
+  assert.deepEqual(b.profiles[1], { id:'b', name:'Rui' });
+  const r = parseBackup(JSON.stringify(b));
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.data.profiles, b.profiles);
+});
+test('old backup without opening fields parses', () => {
+  const r = parseBackup(JSON.stringify(buildBackup(data)));
+  assert.equal(r.ok, true); assert.deepEqual(r.data.profiles[0], { id:'a', name:'Ana' });
+});
+test('invalid opening fields refused', () => {
+  const good = buildBackup(data);
+  const withP = (patch) => JSON.stringify({ ...good, profiles: [{ ...good.profiles[0], ...patch }, good.profiles[1]] });
+  for (const patch of [{ openingCents: 100 }, { openingDate: '2026-10-31' }, { openingCents: 1.5, openingDate: '2026-10-31' },
+    { openingCents: 1000000000, openingDate: '2026-10-31' }, { openingCents: -1000000000, openingDate: '2026-10-31' },
+    { openingCents: '5', openingDate: '2026-10-31' }, { openingCents: 5, openingDate: '2026-02-30' }, { openingCents: 5, openingDate: null }]) {
+    assert.equal(parseBackup(withP(patch)).ok, false, JSON.stringify(patch));
+  }
+  assert.equal(parseBackup(withP({ openingCents: 999999999, openingDate: '2026-10-31' })).ok, true);
+});
+test('import: opening comes from incoming, pins kept (old backup clears opening)', () => {
+  const existing = [{ id:'a', name:'Ana', pinHash:'h', pinSalt:'s', pinIter:1, openingCents:100, openingDate:'2026-10-31' }];
+  assert.deepEqual(mergeProfilesForImport(existing, [{ id:'a', name:'Ana' }]),
+    [{ id:'a', name:'Ana', pinHash:'h', pinSalt:'s', pinIter:1, openingCents:null, openingDate:null }]);
+  assert.deepEqual(mergeProfilesForImport(existing, [{ id:'a', name:'Ana', openingCents:-7, openingDate:'2026-11-01' }]),
+    [{ id:'a', name:'Ana', pinHash:'h', pinSalt:'s', pinIter:1, openingCents:-7, openingDate:'2026-11-01' }]);
 });

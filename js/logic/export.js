@@ -1,4 +1,5 @@
 import { categoryOf, periodStats } from './stats.js';
+import { balanceAt } from './balance.js';
 import { addMonths } from './format.js';
 
 export function validRange(from, to) { return from <= to; }
@@ -34,7 +35,7 @@ export function exportData({ moves, categories, profiles, from, to }) {
         });
       }
       const s = periodStats(moves, categories, ym, m => m.profileId === p.id);
-      summary.push({ ym, profile: p.name, inn: s.inn, out: s.out, saved: s.saved, rate: s.rate });
+      summary.push({ ym, profile: p.name, inn: s.inn, out: s.out, saved: s.saved, rate: s.rate, balance: balanceAt(moves, p, ym) });
     }
   }
   return { totals, summary };

@@ -1,4 +1,4 @@
-import { balanceAt, houseBalance } from './balance.js';
+import { balanceAt, houseBalance, hasOpening } from './balance.js';
 import { todayISO } from './format.js';
 
 export function categoryOf(categories, id, type = 'out') {
@@ -23,10 +23,10 @@ export function periodStats(moves, categories, prefix, pred = () => true) {
 function balanceModel(moves, profiles, view, ym) {
   if (view === 'casa') {
     const h = houseBalance(moves, profiles, ym);
-    return { total: h.total, split: h.split, hasOpening: profiles.length > 0 && profiles.every(p => Number.isInteger(p.openingCents) && !!p.openingDate) };
+    return { total: h.total, split: h.split, hasOpening: profiles.length > 0 && profiles.every(hasOpening) };
   }
   const p = profiles.find(x => x.id === view);
-  return { total: p ? balanceAt(moves, p, ym) : null, split: null, hasOpening: !!p && Number.isInteger(p.openingCents) && !!p.openingDate };
+  return { total: p ? balanceAt(moves, p, ym) : null, split: null, hasOpening: !!p && hasOpening(p) };
 }
 
 export function monthModel({ moves, categories, profiles, ym, view }) {

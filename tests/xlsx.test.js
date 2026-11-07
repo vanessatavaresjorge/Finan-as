@@ -83,3 +83,9 @@ test('sheet names made safe for Excel', () => {
   const names = [...wb.matchAll(/<sheet name="([^"]*)"/g)].map(m => m[1]);
   assert.deepEqual(names, ['a b c   x', 'Totais', 'totais 2', 'x'.repeat(31), 'q']);
 });
+
+test('null number cell writes no cell', () => {
+  const s = part(buildXlsx([{ name: 'N', columns: [{header:'a',type:'string'},{header:'b',type:'number'}], rows: [['x', null], ['y', 5]] }]), 'xl/worksheets/sheet1.xml');
+  assert.ok(!s.includes('r="B2"'));
+  assert.match(s, /<c r="B3"[^>]*><v>5<\/v>/);
+});

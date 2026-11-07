@@ -1,4 +1,5 @@
 import { todayISO } from './logic/format.js';
+import { hasOpening } from './logic/balance.js';
 
 export const INVALID_BACKUP = 'Este ficheiro não é uma cópia de segurança válida desta app.';
 
@@ -6,7 +7,9 @@ export function buildBackup({ profiles, categories, moves }, now = new Date()) {
   return {
     format: 1,
     exportedAt: now.toISOString(),
-    profiles: profiles.map(({ id, name }) => ({ id, name })),
+    profiles: profiles.map((p) => (hasOpening(p)
+      ? { id: p.id, name: p.name, openingCents: p.openingCents, openingDate: p.openingDate }
+      : { id: p.id, name: p.name })),
     categories,
     moves,
   };
@@ -33,7 +36,10 @@ function validate(raw) {
   for (const p of raw.profiles) {
     if (!isObj(p) || !isId(p.id) || !isStr(p.name) || profileIds.has(p.id)) return null;
     profileIds.add(p.id);
-    profiles.push({ id: p.id, name: p.name });
+    const hasC = p.openingCents !== undefined, hasD = p.openingDate !== undefined;
+    if (hasC !== hasD) return null;
+    if (hasC && (!Number.isInteger(p.openingCents) || Math.abs(p.openingCents) > 999999999 || !isRealDate(p.openingDate))) return null;
+    profiles.push(hasC ? { id: p.id, name: p.name, openingCents: p.openingCents, openingDate: p.openingDate } : { id: p.id, name: p.name });
   }
 
   const categories = [];
@@ -74,13 +80,15 @@ export function parseBackup(text) {
 }
 
 export function mergeProfilesForImport(existing, incoming) {
-  return incoming.map(({ id, name }) => {
+  return incoming.map(({ id, name, openingCents, openingDate }) => {
     const old = existing.find((p) => p.id === id);
     return {
       id, name,
       pinHash: old ? old.pinHash : null,
       pinSalt: old ? old.pinSalt : null,
       pinIter: old ? old.pinIter : null,
+      openingCents: openingCents ?? null,
+      openingDate: openingDate ?? null,
     };
   });
 }

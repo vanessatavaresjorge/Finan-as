@@ -19,8 +19,8 @@ test('range respected and summary includes empty months', () => {
   const { totals, summary } = exportData({ moves, categories, profiles, from: '2026-09', to: '2026-12' });
   assert.ok(totals.every(r => r.ym >= '2026-09' && r.ym <= '2026-12'));
   assert.equal(summary.length, 8);
-  assert.deepEqual(summary.find(s => s.ym === '2026-12' && s.profile === 'Ana'), { ym:'2026-12', profile:'Ana', inn:0, out:0, saved:0, rate:null });
-  assert.deepEqual(summary.find(s => s.ym === '2026-11' && s.profile === 'Ana'), { ym:'2026-11', profile:'Ana', inn:200000, out:80000, saved:170000, rate:0.85 });
+  assert.deepEqual(summary.find(s => s.ym === '2026-12' && s.profile === 'Ana'), { ym:'2026-12', profile:'Ana', inn:0, out:0, saved:0, rate:null, balance:119000 });
+  assert.deepEqual(summary.find(s => s.ym === '2026-11' && s.profile === 'Ana'), { ym:'2026-11', profile:'Ana', inn:200000, out:80000, saved:170000, rate:0.85, balance:119000 });
 });
 test('orphan category and no notes', () => {
   const extra = [...moves, mv('a','out',700,'apagada','2026-11-20','nota-secreta')];
@@ -34,3 +34,13 @@ test('moves of unknown profiles are ignored', () => {
   assert.ok(!totals.some(r => r.cents === 999));
 });
 test('file name', () => assert.equal(exportFileName('2025-03','2026-11'), 'financas-2025-03-a-2026-11.xlsx'));
+test('summary balance: opening date respected, null before it', () => {
+  const ps = [{ ...profiles[0], openingCents: 100000, openingDate: '2026-10-31' }, profiles[1]];
+  const { summary } = exportData({ moves, categories, profiles: ps, from: '2026-10', to: '2026-11' });
+  const get = (ym, n) => summary.find(s => s.ym === ym && s.profile === n).balance;
+  assert.equal(get('2026-10', 'Ana'), 100000);
+  assert.equal(get('2026-11', 'Ana'), 100000 + 200000 - 30000 - 50000);
+  assert.equal(get('2026-11', 'Rui'), 80000);
+  const early = exportData({ moves, categories, profiles: ps, from: '2026-09', to: '2026-09' }).summary;
+  assert.equal(early.find(s => s.profile === 'Ana').balance, null);
+});

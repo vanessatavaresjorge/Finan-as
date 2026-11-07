@@ -75,6 +75,8 @@ try {
   assert.ok(rows1[2].includes('>Perfil A<'), 'primeira linha de dados: Perfil A');
   assert.match(sheet1, /<col min="5" max="5" width="20"/);
   assert.match(sheet1, /<col min="4" max="4" width="22"/);
+  assert.ok(sheet2.includes('Em conta no fim do mês'), 'coluna Em conta');
+  assert.match(sheet2, /<col min="7" max="7" width="22"/);
   const rows2 = sheet2.match(/<row /g).length;
   assert.equal(rows2, 1 + monthsInRange(firstYm, curYm).length * 2);
   const all = unzip(['-p', file]).stdout;

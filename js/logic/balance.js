@@ -8,7 +8,7 @@ export function lastDay(ym) {
   return `${ym}-${String(d).padStart(2, '0')}`;
 }
 
-const hasOpening = p => Number.isInteger(p.openingCents) && !!p.openingDate;
+export const hasOpening = p => Number.isInteger(p.openingCents) && !!p.openingDate;
 
 export function balanceAt(moves, profile, ym) {
   const end = lastDay(ym);
