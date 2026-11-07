@@ -73,11 +73,31 @@ try {
   const sheet2 = unzip(['-p', file, 'xl/worksheets/sheet2.xml']).stdout;
   const rows1 = sheet1.split('<row ');
   assert.ok(rows1[2].includes('>Perfil A<'), 'primeira linha de dados: Perfil A');
+  assert.match(sheet1, /<col min="5" max="5" width="20"/);
+  assert.match(sheet1, /<col min="4" max="4" width="22"/);
   const rows2 = sheet2.match(/<row /g).length;
   assert.equal(rows2, 1 + monthsInRange(firstYm, curYm).length * 2);
   const all = unzip(['-p', file]).stdout;
   for (const n of notes) assert.ok(!all.includes(n.replace(/&/g, '&amp;')), `nota no ficheiro: ${n}`);
   assert.equal(await chrome.eval(`document.querySelector('.wexport .exerr').hidden`), true);
+
+  // empty range: next year, January -> February
+  const next = String(Number(year) + 1);
+  await setRange(`${next}-01`, `${next}-02`);
+  await waitFor(chrome, `!document.querySelector('[data-act="download"]').disabled`);
+  await new Promise(r => setTimeout(r, 1000)); // double-click guard
+  await chrome.eval(`window.__dl = null`);
+  await chrome.click('[data-act="download"]');
+  await waitFor(chrome, `window.__dl !== null`);
+  const dl2 = await chrome.eval(`window.__dl`);
+  assert.equal(await chrome.eval(`document.querySelector('.exempty').hidden`), false);
+  assert.equal(await chrome.eval(`document.querySelector('.exempty').textContent`), 'Não há movimentos neste intervalo.');
+  const file2 = path.join(SHOTS, dl2.name);
+  writeFileSync(file2, Buffer.from(dl2.b64, 'base64'));
+  assert.equal(unzip(['-tq', file2]).status, 0);
+  assert.equal(unzip(['-p', file2, 'xl/worksheets/sheet1.xml']).stdout.match(/<row /g).length, 1);
+  await setRange(firstYm, curYm);
+  await waitFor(chrome, `document.querySelector('.exempty').hidden`);
 
   // narrow: redirect, no export UI
   await chrome.setViewport(390, 800);
