@@ -49,6 +49,11 @@ function describe(model, route, casa, sel, categories) {
         <div class="pair"><div class="card"><span class="label">Poupaste</span><b class="num"${model.saved < 0 ? ' style="color:var(--danger)"' : ''}>${eur(model.saved)}</b></div>
         <div class="card"><span class="label">Mês com mais poupança</span><b>${model.best ? cap(MONTHS[model.best.month]) : '—'}</b></div></div>
         ${model.inv > 0 ? `<p class="label" style="margin-top:10px">Foi para categorias de poupança: ${eur(model.inv)}</p>` : ''}`,
+      kpis: [
+        `<div class="card kpi"><span class="label">Taxa de poupança em ${year}${where}</span><b class="num"${isNeg(model.rate) ? DANGER : ''}>${formatPct(model.rate)}</b>${casa ? splitLine(model.split.map(p => ({ name: p.name, text: savedTxt(p) }))) : ''}</div>`,
+        `<div class="card kpi"><span class="label">Poupaste</span><b class="num"${model.saved < 0 ? DANGER : ''}>${eur(model.saved)}</b></div>`,
+        `<div class="card kpi"><span class="label">Mês com mais poupança</span><b>${model.best ? cap(MONTHS[model.best.month]) : '—'}</b></div>`],
+      note: model.inv > 0 ? `Foi para categorias de poupança: ${eur(model.inv)}` : '',
       values: rates, lo: min, hi: max, step, tick: pctTick, chartName: 'Taxa de poupança',
       fmt: i => (rates[i] === null ? '—' : formatPct(model.months[i].rate)),
       readStyle: ms && isNeg(ms.rate) ? DANGER : '', readSub: sub, readSplit: mSplit(sel), unit: 'poupado · taxa',
@@ -67,12 +72,46 @@ function describe(model, route, casa, sel, categories) {
       <div class="pair"><div class="card"><span class="label">Média por mês</span><b class="num">${model.average === null ? '—' : eur(Math.round(model.average))}</b></div>
       <div class="card"><span class="label">Mês mais alto</span><b>${model.highest ? cap(MONTHS[model.highest.month]) : '—'}</b></div></div>
       <div class="fchips">${chips}</div>`,
+    kpis: [
+      `<div class="card kpi"><span class="label">Saiu em ${year}${where}${fc ? ` · ${esc(fc.icon)} ${esc(fc.name)}` : ''}</span><b class="num">${eur(model.total)}</b>${casa ? splitLine(model.split.map(p => ({ name: p.name, text: eur(p.cents) }))) : ''}</div>`,
+      `<div class="card kpi"><span class="label">Média por mês</span><b class="num">${model.average === null ? '—' : eur(Math.round(model.average))}</b></div>`,
+      `<div class="card kpi"><span class="label">Mês mais alto</span><b>${model.highest ? `${cap(MONTHS[model.highest.month])} · ${eur(model.highest.cents)}` : '—'}</b></div>`],
+    chips: `<div class="fchips">${chips}</div>`, note: '',
     values: model.months, lo: 0, hi: model.scale.top, step: model.scale.step, tick: euroTick, chartName: 'Saídas',
     fmt: i => eur(model.months[i]),
     readStyle: '', readSub: '', readSplit: mSplit(sel), unit: 'em euros',
     listVal: i => (model.months[i] > 0
       ? `<span class="rv"><b class="num">${eur(model.months[i])}</b>${mSplit(i)}</span>` : '<b class="none">—</b>'),
   };
+}
+
+// Wide window: top bar, KPI row, chips, then the chart card (2/3) beside Mês a mês (1/3).
+function widePage(ctx, route, casa, state, d, sel) {
+  const { year } = route;
+  const isSave = route.mode === 'poupanca';
+  return `<div class="scroll"><div class="wyear">
+    ${state.pending ? '<div class="label sync" role="status">A sincronizar…</div>' : ''}
+    <div class="wtop"><div class="wleft">
+      <div class="monthnav"><button data-act="prev" aria-label="Ano anterior">‹</button><span class="title">${year}</span><button data-act="next" aria-label="Ano seguinte">›</button></div>
+      <div class="seg yseg"><button class="${isSave ? '' : 'on'}" data-act="mode" data-v="gastos">Gastos</button><button class="${isSave ? 'on' : ''}" data-act="mode" data-v="poupanca">Poupança</button></div></div>
+      ${viewSeg(state.profiles, ctx.profileId, casa)}
+    </div>
+    <div class="kpis k3">${d.kpis.join('')}</div>
+    ${d.note ? `<p class="kpiphrase">${d.note}</p>` : ''}
+    ${d.chips ?? ''}
+    <div class="wymid">
+      <div class="card chartcard">
+        <div class="readout">
+          <div><span class="label">${cap(MONTHS[sel])} ${year}${d.readSub ? ' · ' + d.readSub : ''}</span><b class="num"${d.readStyle}>${d.fmt(sel)}</b>${d.readSplit}</div>
+          <button data-act="open" data-v="${sel}">Ver mês ›</button>
+        </div>
+        ${barChart({ values: d.values, selected: sel, scale: { min: d.lo, max: d.hi, step: d.step, tick: d.tick },
+          format: (v, i) => d.fmt(i), label: `${d.chartName} por mês em ${year}` })}
+      </div>
+      <div class="card wymonths"><div class="ct">Mês a mês <span>${d.unit}</span></div>
+        <div class="list all">${MONTHS.map((n, i) => `<button class="yrow ${i === sel ? 'sel' : ''}" data-act="open" data-v="${i}"><span>${cap(n)}</span>${d.listVal(i)}</button>`).join('')}</div></div>
+    </div>
+  </div></div>`;
 }
 
 function page(ctx, route, casa) {
@@ -86,6 +125,7 @@ function page(ctx, route, casa) {
   const d = describe(model, route, casa, sel, outCats);
   const isSave = route.mode === 'poupanca';
 
+  if (ctx.wide) return widePage(ctx, route, casa, state, d, sel);
   const seg = viewSeg(state.profiles, ctx.profileId, casa);
   return `<div class="scroll">
     ${state.pending ? '<div class="label sync" role="status">A sincronizar…</div>' : ''}

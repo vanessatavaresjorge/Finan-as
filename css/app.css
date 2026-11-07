@@ -276,3 +276,30 @@ table.movs tbody tr[data-act] { cursor:pointer; }
 table.movs tbody tr[data-act]:hover td { background:#fbf7f0; }
 table.movs tbody tr:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 table.movs tr.none td { text-align:center; color:var(--muted); padding:22px 8px; }
+/* Wide year: top bar, 3 KPI cards, chips, chart card (2/3, chart fills it) | Mês a mês (1/3) */
+.wyear { display:flex; flex-direction:column; gap:14px; min-height:100%; min-width:0; }
+.wyear .wtop .wleft { display:flex; align-items:center; gap:18px; }
+.wyear .yseg { margin:0; font-size:14px; }
+.wyear .yseg button { padding:6px 14px; }
+.wyear .kpis.k3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.wyear .kpiphrase { margin-top:-6px; }
+.wyear .fchips { margin:0; padding:0 0 4px; flex-wrap:wrap; overflow:visible; }
+.wymid { flex:1; display:flex; gap:14px; min-height:470px; align-items:stretch; }
+.wyear .chartcard { flex:2; min-width:0; margin:0; padding:14px 16px 12px; display:flex; flex-direction:column; }
+.wyear .chartcard .chart { flex:1; height:auto; min-height:200px; margin-left:48px; margin-top:10px; }
+.wyear .chartcard .mlabels { margin-left:48px; }
+.wyear .chartcard .gl span, .wyear .chartcard .mlabels span { font-size:12px; }
+.wymonths { flex:1; min-width:0; padding:14px 16px; display:flex; flex-direction:column; }
+.wymonths .ct { font-size:13px; color:var(--muted); margin-bottom:6px; }
+.wymonths .ct span { margin-left:6px; }
+.wymonths .list { margin:0; padding:0; flex:1; display:flex; flex-direction:column; justify-content:space-between; }
+.wymonths .yrow { padding:7px 0; flex:1; }
+/* Categories on the wide window: two columns */
+.wide .ccols { display:flex; gap:14px; align-items:flex-start; }
+.wide .ccol { flex:1; min-width:0; }
+.wide .ccol .btn.plain { margin-top:0; border:0; border-bottom:1px solid var(--line); border-radius:0; background:none; text-align:left; padding:11px 0; font-size:15px; color:var(--accent); }
+.wide .ccol:last-child .sect:last-child { background:var(--card); border:1px solid var(--cardb); border-radius:12px; padding:14px 16px; }
+.wide .ccol .sect:first-child { margin-top:14px; }
+.wide .ccol .sect + .sect { margin-top:14px; }
+.wide .ccol:last-child .sect:last-child .btn:last-of-type { border-bottom:0; }
+.wide .cols i.negb { background:var(--danger); }

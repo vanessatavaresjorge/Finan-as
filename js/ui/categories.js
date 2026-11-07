@@ -34,7 +34,9 @@ function view(ctx) {
   return `<div class="scroll">
     <div class="title" style="font-size:22px">Categorias</div>
     <p class="label" style="margin-top:4px">As categorias são comuns a todos os perfis.</p>
+    <div class="ccols"><div class="ccol">
     ${catSection(state.categories, 'out', 'Saídas')}${catSection(state.categories, 'in', 'Entradas')}
+    </div><div class="ccol">
     <div class="sect"><h3>Perfis</h3><div class="card" style="padding:0 14px">
       ${state.profiles.map(p => `<div class="catrow"><span><span class="av sm">${esc(initial(p.name))}</span>${esc(p.name)}${p.id === ctx.profileId ? '<span class="tag here">aberto</span>' : ''}</span><span class="acts"><button data-act="renprof" data-v="${esc(p.id)}">Renomear</button></span></div>`).join('')}
       <div class="catrow" style="border:0"><button class="addcat" data-act="newprof">+ Novo perfil</button></div></div></div>
@@ -46,6 +48,7 @@ function view(ctx) {
       ${ctx.demo && !ctx.showSignOut ? '' : `<button class="btn plain" data-act="logout">Terminar sessão</button>
       <p class="label" style="text-align:center;margin-top:8px">Conta da casa: ${esc(email ?? '')}</p>`}
     </div>
+    </div></div>
   </div>`;
 }
 
