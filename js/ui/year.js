@@ -105,7 +105,6 @@ function widePage(ctx, route, casa, state, d, sel, rule) {
     <div class="kpis k3">${d.kpis.join('')}</div>
     ${d.note ? `<p class="kpiphrase">${d.note}</p>` : ''}
     ${d.hint}
-    ${rule}
     ${d.chips ?? ''}
     <div class="wymid">
       <div class="card chartcard">
@@ -119,6 +118,7 @@ function widePage(ctx, route, casa, state, d, sel, rule) {
       <div class="card wymonths"><div class="ct">Mês a mês <span>${d.unit}</span></div>
         <div class="list all">${MONTHS.map((n, i) => `<button class="yrow ${i === sel ? 'sel' : ''}" data-act="open" data-v="${i}"><span>${cap(n)}</span>${d.listVal(i)}</button>`).join('')}</div></div>
     </div>
+    ${rule}
   </div></div>`;
 }
 

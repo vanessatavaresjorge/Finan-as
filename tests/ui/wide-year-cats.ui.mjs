@@ -38,9 +38,7 @@ try {
   assert.ok(plot.height >= 250, `área do gráfico: ${plot.height}`);
   assert.equal(await chrome.eval(`document.querySelectorAll('.wymonths .yrow').length`), 12);
   const bottoms = await chrome.eval(`[...document.querySelectorAll('.yrow')].map(r => r.getBoundingClientRect().bottom)`);
-  // The 50/30/20 strip pushes the page past 800 px (it scrolls); the 12 rows must still fit their card.
-  const cardBottom = await chrome.eval(`document.querySelector('.wymonths').getBoundingClientRect().bottom`);
-  assert.ok(bottoms.every(b => b <= cardBottom + 1), `linhas fora do cartão: ${bottoms}`);
+  assert.ok(bottoms.every(b => b <= 800), `linhas fora da janela: ${bottoms}`);
   const cw = await chrome.eval(`document.querySelector('.chartcard').getBoundingClientRect().width`);
   const lw = await chrome.eval(`document.querySelector('.wymonths').getBoundingClientRect().width`);
   assert.ok(cw > 1.5 * lw, `proporção 2:1: ${cw} / ${lw}`);

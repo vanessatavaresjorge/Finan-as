@@ -53,7 +53,7 @@ export const balanceHint = (b, casa, cls = 'balhint') => (!casa && !b.hasOpening
 
 // ---------- 50/30/20 card (Mês and Ano, phone and wide) ----------
 const RULE_ROWS = [['necessidade', 'nec', 'Necessidades'], ['desejo', 'des', 'Desejos'], ['poupanca', 'pou', 'Poupança']];
-const ruleWithin = (g, pct) => (g === 'poupanca' ? pct >= TARGETS[g] : pct <= TARGETS[g]);
+export const ruleWithin = (g, pct) => (g === 'poupanca' ? pct >= TARGETS[g] : pct <= TARGETS[g]);
 
 // rule = { totals: RuleModel, split: {name, pct}[] | null }. Percentages only, never movements.
 export function ruleCard(rule, { casa = false, emptyText, wide = false } = {}) {

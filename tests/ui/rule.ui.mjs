@@ -65,7 +65,6 @@ try {
   assert.equal(await chrome.eval(`document.querySelector('.savecard').nextElementSibling === document.querySelector('.rulecard')`), true, 'below the savings card');
   checkRows(await rows('.scroll'), mRule(ym, 'a'), 'phone a', false);
   await chrome.screenshot(`${SHOTS}/rule-phone-a.png`, { width: 390, height: 844 });
-  // both colours show up somewhere across the demo months/profiles (guards the colour check)
   // ---- Phone Mês: Casa ----
   await open('a', `/mes/${ym}/casa`, 390, 844, '.rulecard');
   checkRows(await rows('.scroll'), mRule(ym, 'casa'), 'phone casa', true);
@@ -107,6 +106,11 @@ try {
       await open('a', hash, w, h, '.rulecard');
       checkRows(await rows(scope), yRule(year, view), `ano ${w} ${hash}`, casa);
       assert.equal(await chrome.eval(`document.querySelector('.rulecard .rtitle').textContent`), '50/30/20');
+    }
+    if (w > 1000) {
+      await open('a', `/ano/${year}`, w, h, '.rulecard');
+      assert.equal(await chrome.eval(`document.querySelector('.wymid').compareDocumentPosition(document.querySelector('.rulecard')) & Node.DOCUMENT_POSITION_FOLLOWING`) > 0, true, 'wide year: strip after chart row');
+      assert.equal(await chrome.eval(`[...document.querySelectorAll('.yrow')].every(r => r.getBoundingClientRect().bottom <= innerHeight)`), true, 'rows above the fold');
     }
     await open('a', `/ano/${futureYear}`, w, h, '.rulecard');
     assert.equal(await chrome.eval(`document.querySelector('.rulecard .rnone').textContent`), '—');
