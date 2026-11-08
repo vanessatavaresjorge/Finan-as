@@ -1,5 +1,6 @@
 // Small DOM helpers shared by every screen.
 import { formatEur } from '../logic/format.js';
+import { TARGETS } from '../logic/groups.js';
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -49,3 +50,25 @@ export function balanceSplit(b) {
 
 // Hint only in a profile view that has no opening balance.
 export const balanceHint = (b, casa, cls = 'balhint') => (!casa && !b.hasOpening ? `<p class="${cls}">${BALANCE_HINT}</p>` : '');
+
+// ---------- 50/30/20 card (Mês and Ano, phone and wide) ----------
+const RULE_ROWS = [['necessidade', 'nec', 'Necessidades'], ['desejo', 'des', 'Desejos'], ['poupanca', 'pou', 'Poupança']];
+const ruleWithin = (g, pct) => (g === 'poupanca' ? pct >= TARGETS[g] : pct <= TARGETS[g]);
+
+// rule = { totals: RuleModel, split: {name, pct}[] | null }. Percentages only, never movements.
+export function ruleCard(rule, { casa = false, emptyText, wide = false } = {}) {
+  const { totals, split } = rule;
+  const cls = `card rulecard${wide ? ' wide' : ''}`;
+  if (!totals.pct) {
+    return `<div class="${cls}"><div class="hd"><span class="label rtitle">50/30/20</span><b class="num rnone">—</b></div><p class="rempty">${esc(emptyText)}</p></div>`;
+  }
+  const rows = RULE_ROWS.map(([g, k, name]) => {
+    const pct = totals.pct[k];
+    const state = ruleWithin(g, pct) ? 'ok' : 'bad';
+    const width = Math.max(0, Math.min(100, pct));
+    const parts = casa && split ? `<div class="split">${split.map(p => `${esc(p.name)} ${p.pct ? p.pct[k] + '%' : '—'}`).join(' · ')}</div>` : '';
+    return `<div class="rrow" data-g="${g}"><div class="rtop"><span class="rname">${name}</span><b class="num rpct ${state}">${pct}%</b><span class="rmeta">meta ${TARGETS[g]}%</span></div>
+      <div class="rbar"><i class="${state}" style="width:${width}%"></i><u class="rmark" style="left:${TARGETS[g]}%"></u></div>${parts}</div>`;
+  }).join('');
+  return `<div class="${cls}"><div class="label rtitle">50/30/20</div><div class="rrows">${rows}</div></div>`;
+}

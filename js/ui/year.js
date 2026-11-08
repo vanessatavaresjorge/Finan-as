@@ -1,7 +1,7 @@
 // Year screen (route ano): spending or savings per month, chart, and the month-by-month list.
 import { formatEur, formatPct, todayISO, MONTHS } from '../logic/format.js';
 import { yearModel } from '../logic/stats.js';
-import { esc, mount, bindActions, viewSeg, balanceValue, balanceNeg, balanceSplit, balanceHint } from './dom.js';
+import { esc, mount, bindActions, viewSeg, balanceValue, balanceNeg, balanceSplit, balanceHint, ruleCard } from './dom.js';
 import { barChart, euroTick } from './chart.js';
 
 const eur = formatEur;
@@ -76,8 +76,7 @@ function describe(model, route, casa, sel, categories) {
         ${casa ? splitLine(model.split.map(p => ({ name: p.name, text: eur(p.cents) }))) : ''}</div>
       <div class="pair"><div class="card"><span class="label">Média por mês</span><b class="num">${model.average === null ? '—' : eur(Math.round(model.average))}</b></div>
       <div class="card"><span class="label">Mês mais alto</span><b>${model.highest ? cap(MONTHS[model.highest.month]) : '—'}</b></div></div>
-      ${balCard('card balcard')}
-      <div class="fchips">${chips}</div>`,
+      ${balCard('card balcard')}`,
     kpis: [
       `<div class="card kpi"><span class="label">Saiu em ${year}${where}${fc ? ` · ${esc(fc.icon)} ${esc(fc.name)}` : ''}</span><b class="num">${eur(model.total)}</b>${casa ? splitLine(model.split.map(p => ({ name: p.name, text: eur(p.cents) }))) : ''}</div>`,
       `<div class="card kpi"><span class="label">Média por mês</span><b class="num">${model.average === null ? '—' : eur(Math.round(model.average))}</b></div>`,
@@ -93,7 +92,7 @@ function describe(model, route, casa, sel, categories) {
 }
 
 // Wide window: top bar, KPI row, chips, then the chart card (2/3) beside Mês a mês (1/3).
-function widePage(ctx, route, casa, state, d, sel) {
+function widePage(ctx, route, casa, state, d, sel, rule) {
   const { year } = route;
   const isSave = route.mode === 'poupanca';
   return `<div class="scroll"><div class="wyear">
@@ -106,6 +105,7 @@ function widePage(ctx, route, casa, state, d, sel) {
     <div class="kpis k3">${d.kpis.join('')}</div>
     ${d.note ? `<p class="kpiphrase">${d.note}</p>` : ''}
     ${d.hint}
+    ${rule}
     ${d.chips ?? ''}
     <div class="wymid">
       <div class="card chartcard">
@@ -132,8 +132,9 @@ function page(ctx, route, casa) {
   const sel = ui.sel;
   const d = describe(model, route, casa, sel, outCats);
   const isSave = route.mode === 'poupanca';
+  const rule = ruleCard(model.rule, { casa, emptyText: 'Ainda não há movimentos neste ano.', wide: ctx.wide });
 
-  if (ctx.wide) return widePage(ctx, route, casa, state, d, sel);
+  if (ctx.wide) return widePage(ctx, route, casa, state, d, sel, rule);
   const seg = viewSeg(state.profiles, ctx.profileId, casa);
   return `<div class="scroll">
     ${state.pending ? '<div class="label sync" role="status">A sincronizar…</div>' : ''}
@@ -141,6 +142,8 @@ function page(ctx, route, casa) {
     <div class="monthnav"><button data-act="prev" aria-label="Ano anterior">‹</button><span class="title">${year}</span><button data-act="next" aria-label="Ano seguinte">›</button></div>
     <div class="seg yseg"><button class="${isSave ? '' : 'on'}" data-act="mode" data-v="gastos">Gastos</button><button class="${isSave ? 'on' : ''}" data-act="mode" data-v="poupanca">Poupança</button></div>
     ${d.head}
+    ${rule}
+    ${d.chips ?? ''}
     <div class="card chartcard">
       <div class="readout">
         <div><span class="label">${cap(MONTHS[sel])} ${year}${d.readSub ? ' · ' + d.readSub : ''}</span><b class="num"${d.readStyle}>${d.fmt(sel)}</b>${d.readSplit}</div>

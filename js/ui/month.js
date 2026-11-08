@@ -2,7 +2,7 @@
 import { formatEur, formatPct, shortDate, monthTitle, addMonths, todayISO } from '../logic/format.js';
 import { parseRoute } from '../logic/route.js';
 import { monthModel, yearModel, categoryOf } from '../logic/stats.js';
-import { esc, mount, bindActions, viewSeg, balanceValue, balanceNeg, balanceSplit, balanceHint } from './dom.js';
+import { esc, mount, bindActions, viewSeg, balanceValue, balanceNeg, balanceSplit, balanceHint, ruleCard } from './dom.js';
 import { barChart, euroTick } from './chart.js';
 
 const eur = formatEur;
@@ -77,6 +77,7 @@ function monthView(ctx, ym, casa) {
     </div>
     <div class="card balcard"><span class="label">${balTitle(ym)}</span><b class="num${balanceNeg(model.balance) ? ' neg' : ''}">${balanceValue(model.balance)}</b>${balanceSplit(model.balance)}${balanceHint(model.balance, casa)}</div>
     ${saveCard(t, split)}
+    ${ruleCard(model.rule, { casa, emptyText: 'Ainda não há movimentos neste mês.' })}
     ${list}
     ${!casa && model.moves.length ? `<div class="sech"><h3>Movimentos</h3><span>${model.moves.length}</span></div>
     <div class="card list all">${model.moves.map(moveRow).join('')}</div>` : ''}
@@ -184,6 +185,7 @@ function wideView(ctx, route, casa) {
     </div>
     ${widePhrase(t, split)}
     ${balanceHint(model.balance, casa, 'kpiphrase')}
+    ${ruleCard(model.rule, { casa, emptyText: 'Ainda não há movimentos neste mês.', wide: true })}
     <div class="wmid">
       <div class="card wcats"><div class="ct">Categorias</div>${cats}</div>
       <div class="card wchart"><div class="ct">Saídas em ${year}</div>${chart}</div>

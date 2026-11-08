@@ -95,6 +95,25 @@ input { font:inherit; color:inherit; }
 .savecard .hd { display:flex; justify-content:space-between; align-items:baseline; }
 .savecard .hd b { font-size:22px; font-weight:600; font-variant-numeric:lining-nums proportional-nums; }
 .savecard .hd b.neg { color:var(--danger); }
+/* 50/30/20 card: one row per group (name, real %, target), a bar and a vertical mark at the target */
+.rulecard { margin-top:10px; padding:12px 13px 13px; }
+.rulecard .hd { display:flex; justify-content:space-between; align-items:baseline; }
+.rulecard .rnone { font-size:22px; font-weight:600; }
+.rulecard .rempty { font-size:13px; color:var(--muted); margin-top:8px; line-height:1.4; }
+.rrow { min-width:0; margin-top:12px; }
+.rtop { display:flex; align-items:baseline; gap:8px; }
+.rname { font-size:14px; flex:1; min-width:0; }
+.rpct { font-size:18px; font-weight:600; font-variant-numeric:lining-nums proportional-nums; }
+.rmeta { font-size:12px; color:var(--muted); min-width:56px; text-align:right; }
+.rpct.ok { color:#1f7a5a; } .rpct.bad { color:#a3361f; }
+.rbar { position:relative; height:6px; border-radius:3px; background:var(--track); margin-top:6px; }
+.rbar i { display:block; height:100%; border-radius:3px; }
+.rbar i.ok { background:#1f7a5a; } .rbar i.bad { background:#a3361f; }
+.rbar .rmark { position:absolute; top:-3px; bottom:-3px; width:2px; margin-left:-1px; background:var(--text); border-radius:1px; text-decoration:none; }
+.rulecard.wide { margin:0; padding:14px 16px; }
+.rulecard.wide .rrows { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:28px; }
+.rulecard.wide .rrow { margin-top:6px; }
+.rulecard.wide .rempty { margin-top:4px; }
 .meter { height:6px; border-radius:3px; background:var(--track); margin-top:8px; overflow:hidden; }
 .meter i { display:block; height:100%; border-radius:3px; background:var(--in); }
 .savecard p { font-size:13px; color:var(--muted); margin-top:8px; line-height:1.4; }
