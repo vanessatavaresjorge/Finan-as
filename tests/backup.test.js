@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { buildBackup, parseBackup, mergeProfilesForImport, backupFileName, INVALID_BACKUP } from '../js/backup.js';
 import { authMessage } from '../js/logic/messages.js';
 import { categories, moves, profiles } from './fixture.js';
+import { groupOf } from '../js/logic/groups.js';
 
 const data = { profiles: profiles.map(p => ({...p, pinHash:'h', pinSalt:'s', pinIter:100000})), categories, moves };
 test('export leaves codes out', () => {
@@ -13,7 +14,31 @@ test('export leaves codes out', () => {
 test('round trip', () => {
   const r = parseBackup(JSON.stringify(buildBackup(data)));
   assert.equal(r.ok, true); assert.equal(r.moveCount, data.moves.length); assert.deepEqual(r.data.moves, data.moves);
-  assert.deepEqual(r.data.categories, data.categories);
+  assert.deepEqual(r.data.categories, data.categories.map(c => c.type === 'out' ? { ...c, group: groupOf(c) } : c));
+});
+test('group is exported for outs and kept on import', () => {
+  const cats = categories.map(c => c.type === 'out' && c.id === categories.find(x => x.type === 'out').id ? { ...c, group: 'desejo' } : c);
+  const b = buildBackup({ ...data, categories: cats });
+  assert.ok(b.categories.filter(c => c.type === 'out').every(c => ['necessidade', 'desejo', 'poupanca'].includes(c.group)));
+  assert.ok(b.categories.filter(c => c.type === 'in').every(c => !('group' in c)));
+  const r = parseBackup(JSON.stringify(b));
+  assert.deepEqual(r.data.categories, b.categories);
+});
+test('old backup: savings true without group imports as poupanca', () => {
+  const good = buildBackup(data);
+  const old = good.categories.map(({ group, ...c }) => c);
+  assert.ok(old.some(c => c.savings === true));
+  const r = parseBackup(JSON.stringify({ ...good, categories: old }));
+  assert.equal(r.ok, true);
+  for (const c of r.data.categories.filter(c => c.savings)) { assert.ok(!('group' in c)); assert.equal(groupOf(c), 'poupanca'); }
+});
+test('invalid group refused', () => {
+  const good = buildBackup(data);
+  const outIdx = good.categories.findIndex(c => c.type === 'out');
+  const inIdx = good.categories.findIndex(c => c.type === 'in');
+  const patch = (i, g) => JSON.stringify({ ...good, categories: good.categories.map((c, k) => k === i ? { ...c, group: g } : c) });
+  for (const t of [patch(outIdx, 'outro'), patch(outIdx, 5), patch(inIdx, 'desejo')])
+    assert.deepEqual(parseBackup(t), { ok: false, error: INVALID_BACKUP });
 });
 test('refuses invalid files', () => {
   const good = buildBackup(data);

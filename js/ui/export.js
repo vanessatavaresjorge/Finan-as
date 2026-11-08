@@ -29,9 +29,9 @@ function build(state, from, to) {
       name: 'Totais',
       columns: [
         { header: 'Mês', width: 12, type: 'month' }, { header: 'Perfil', width: 14, type: 'string' }, { header: 'Tipo', width: 10, type: 'string' },
-        { header: 'Categoria', width: 22, type: 'string' }, { header: 'Conta como poupança', width: 20, type: 'string' }, { header: 'Valor (€)', width: 14, type: 'number' },
+        { header: 'Categoria', width: 22, type: 'string' }, { header: 'Grupo', width: 14, type: 'string' }, { header: 'Valor (€)', width: 14, type: 'number' },
       ],
-      rows: totals.map(r => [r.ym, r.profile, r.type, r.category, r.savings, r.cents / 100]),
+      rows: totals.map(r => [r.ym, r.profile, r.type, r.category, r.group, r.cents / 100]),
     },
     {
       name: 'Resumo',
@@ -39,8 +39,10 @@ function build(state, from, to) {
         { header: 'Mês', width: 12, type: 'month' }, { header: 'Perfil', width: 14, type: 'string' }, { header: 'Entrou', width: 14, type: 'number' },
         { header: 'Saiu', width: 14, type: 'number' }, { header: 'Poupado', width: 14, type: 'number' }, { header: 'Taxa de poupança', width: 18, type: 'percent' },
         { header: 'Em conta no fim do mês', width: 22, type: 'number' },
+        { header: 'Necessidades %', width: 16, type: 'percent' }, { header: 'Desejos %', width: 16, type: 'percent' }, { header: 'Poupança %', width: 16, type: 'percent' },
       ],
-      rows: summary.map(r => [r.ym, r.profile, r.inn / 100, r.out / 100, r.saved / 100, r.rate, r.balance === null ? null : r.balance / 100]),
+      rows: summary.map(r => [r.ym, r.profile, r.inn / 100, r.out / 100, r.saved / 100, r.rate, r.balance === null ? null : r.balance / 100,
+        ...[r.nec, r.des, r.pou].map(v => (v === null ? null : v / 100))]),
     },
   ]);
   return { bytes, empty: totals.length === 0 };

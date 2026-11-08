@@ -8,19 +8,19 @@ test('monthsInRange crosses years', () => assert.deepEqual(monthsInRange('2025-1
 test('totals per month, profile and category, both profiles, no zero rows', () => {
   const { totals } = exportData({ moves, categories, profiles, from: '2026-11', to: '2026-11' });
   assert.deepEqual(totals, [
-    { ym:'2026-11', profile:'Ana', type:'Saída',   category:'Carro',         savings:'Não', cents:30000 },
-    { ym:'2026-11', profile:'Ana', type:'Saída',   category:'Investimentos', savings:'Sim', cents:50000 },
-    { ym:'2026-11', profile:'Ana', type:'Entrada', category:'Salário',       savings:'Não', cents:200000 },
-    { ym:'2026-11', profile:'Rui', type:'Saída',   category:'Carro',         savings:'Não', cents:20000 },
-    { ym:'2026-11', profile:'Rui', type:'Entrada', category:'Salário',       savings:'Não', cents:100000 },
+    { ym:'2026-11', profile:'Ana', type:'Saída',   category:'Carro',         group:'Necessidade', cents:30000 },
+    { ym:'2026-11', profile:'Ana', type:'Saída',   category:'Investimentos', group:'Poupança', cents:50000 },
+    { ym:'2026-11', profile:'Ana', type:'Entrada', category:'Salário',       group:'', cents:200000 },
+    { ym:'2026-11', profile:'Rui', type:'Saída',   category:'Carro',         group:'Necessidade', cents:20000 },
+    { ym:'2026-11', profile:'Rui', type:'Entrada', category:'Salário',       group:'', cents:100000 },
   ]);
 });
 test('range respected and summary includes empty months', () => {
   const { totals, summary } = exportData({ moves, categories, profiles, from: '2026-09', to: '2026-12' });
   assert.ok(totals.every(r => r.ym >= '2026-09' && r.ym <= '2026-12'));
   assert.equal(summary.length, 8);
-  assert.deepEqual(summary.find(s => s.ym === '2026-12' && s.profile === 'Ana'), { ym:'2026-12', profile:'Ana', inn:0, out:0, saved:0, rate:null, balance:119000 });
-  assert.deepEqual(summary.find(s => s.ym === '2026-11' && s.profile === 'Ana'), { ym:'2026-11', profile:'Ana', inn:200000, out:80000, saved:170000, rate:0.85, balance:119000 });
+  assert.deepEqual(summary.find(s => s.ym === '2026-12' && s.profile === 'Ana'), { ym:'2026-12', profile:'Ana', inn:0, out:0, saved:0, rate:null, balance:119000, nec:null, des:null, pou:null });
+  assert.deepEqual(summary.find(s => s.ym === '2026-11' && s.profile === 'Ana'), { ym:'2026-11', profile:'Ana', inn:200000, out:80000, saved:170000, rate:0.85, balance:119000, nec:15, des:0, pou:85 });
 });
 test('orphan category and no notes', () => {
   const extra = [...moves, mv('a','out',700,'apagada','2026-11-20','nota-secreta')];

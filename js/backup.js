@@ -1,5 +1,6 @@
 import { todayISO } from './logic/format.js';
 import { hasOpening } from './logic/balance.js';
+import { GROUPS, groupOf } from './logic/groups.js';
 
 export const INVALID_BACKUP = 'Este ficheiro não é uma cópia de segurança válida desta app.';
 
@@ -10,7 +11,7 @@ export function buildBackup({ profiles, categories, moves }, now = new Date()) {
     profiles: profiles.map((p) => (hasOpening(p)
       ? { id: p.id, name: p.name, openingCents: p.openingCents, openingDate: p.openingDate }
       : { id: p.id, name: p.name })),
-    categories,
+    categories: categories.map(c => (c.type === 'out' ? { ...c, group: groupOf(c) } : c)),
     moves,
   };
 }
@@ -48,8 +49,11 @@ function validate(raw) {
     if (!isObj(c) || !isId(c.id) || !isStr(c.name) || !isStr(c.icon) || catType.has(c.id)) return null;
     if (c.type !== 'out' && c.type !== 'in') return null;
     if (typeof c.savings !== 'boolean' || !Number.isFinite(c.order)) return null;
+    if (c.group !== undefined && (c.type !== 'out' || !GROUPS.includes(c.group))) return null;
     catType.set(c.id, c.type);
-    categories.push({ id: c.id, name: c.name, type: c.type, icon: c.icon, savings: c.savings, order: c.order });
+    const cat = { id: c.id, name: c.name, type: c.type, icon: c.icon, savings: c.savings, order: c.order };
+    if (c.group !== undefined) cat.group = c.group;
+    categories.push(cat);
   }
   const types = new Set(catType.values());
   if (!types.has('out') || !types.has('in')) return null;
