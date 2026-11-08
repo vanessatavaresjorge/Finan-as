@@ -16,7 +16,7 @@ function seeded(seed) {
 export function demoData(today) {
   const rnd = seeded(20261106);
   const categories = DEFAULT_CATEGORIES.map(c => ({ ...c }));
-  categories.push({ id: 'inv', name: 'Investimentos', type: 'out', icon: '📈', savings: true, order: nextOrder(categories) });
+  categories.push({ id: 'inv', name: 'Investimentos', type: 'out', icon: '📈', group: 'poupanca', savings: true, order: nextOrder(categories) });
   const profiles = [
     { id: 'a', name: 'Perfil A', pinHash: null, pinSalt: null, pinIter: null,
       openingCents: 150000, openingDate: lastDay(addMonths(today.slice(0, 7), -12)) },

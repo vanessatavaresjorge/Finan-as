@@ -1,6 +1,7 @@
 // Bottom sheet to create or edit a category. Lives in #app (outside the screen), so a store update
 // that re-renders the screen never tears it down or erases what was typed.
 import { ICONS, validateCategory } from '../logic/categories.js';
+import { GROUPS, GROUP_LABELS, groupOf } from '../logic/groups.js';
 import { esc, h } from './dom.js';
 
 export function openCategorySheet(ctx, { type, category = null }) {
@@ -9,7 +10,7 @@ export function openCategorySheet(ctx, { type, category = null }) {
     const editing = category?.id ?? null;
     const kind = category ? category.type : type; // editing never changes the type
     let icon = category ? category.icon : ICONS[0];
-    let savings = !!category?.savings;
+    let group = category && kind === 'out' ? groupOf(category) : null;
     let busy = false;
 
     const shade = h(`<div class="shade" data-act="sheet-cancel"><div class="sheet side" role="dialog" aria-modal="true">
@@ -17,7 +18,9 @@ export function openCategorySheet(ctx, { type, category = null }) {
       <div class="card namein"><span class="e">${esc(icon)}</span><input id="catname" placeholder="Nome" value="${esc(category?.name ?? '')}" maxlength="30" autocomplete="off"></div>
       <div class="label" style="margin-top:16px">Símbolo</div>
       <div class="emojis">${ICONS.map(e => `<button type="button" class="${e === icon ? 'on' : ''}" data-act="icon" data-v="${esc(e)}">${esc(e)}</button>`).join('')}</div>
-      ${kind === 'out' ? `<button type="button" class="card switch" data-act="toggle-sav" role="switch" aria-checked="${savings}"><span>Conta como poupança<small>Para investimentos ou dinheiro posto de parte. Continua a contar no que saiu, mas entra na taxa de poupança.</small></span><span class="tog ${savings ? 'on' : ''}"></span></button>` : ''}
+      ${kind === 'out' ? `<div class="label" style="margin-top:16px" id="grplabel">Grupo</div>
+      <div class="seg grpseg" role="radiogroup" aria-labelledby="grplabel">${GROUPS.map(g => `<button type="button" role="radio" data-act="group" data-g="${g}" class="${g === group ? 'on' : ''}" aria-checked="${g === group}" tabindex="${g === (group ?? GROUPS[0]) ? 0 : -1}">${GROUP_LABELS[g]}</button>`).join('')}</div>
+      <p class="hint">Para a regra 50/30/20. Poupança é para investimentos ou dinheiro posto de parte: continua a contar no que saiu, mas entra na taxa de poupança.</p>` : ''}
       <div class="error" role="alert"></div>
       <button type="button" class="btn" data-act="sheet-save" style="margin-top:6px">Guardar</button>
       <button type="button" class="btn plain" data-act="sheet-cancel">Cancelar</button>
@@ -44,17 +47,18 @@ export function openCategorySheet(ctx, { type, category = null }) {
       if (busy) return;
       const state = ctx.store.getState();
       const draft = { name: input.value.trim(), type: kind, icon };
-      const problem = validateCategory(draft, state.categories, editing);
+      const problem = validateCategory(draft, state.categories, editing)
+        ?? (kind === 'out' && !group ? 'Escolhe o grupo.' : null);
       if (problem) { errBox.textContent = problem; return; }
       busy = true;
       saveBtn.disabled = true;
       try {
-        const sav = kind === 'out' && savings;
+        const extra = kind === 'out' ? { group, savings: group === 'poupanca' } : { savings: false };
         if (editing) {
-          await ctx.store.updateCategory(editing, { name: draft.name, icon, savings: sav });
+          await ctx.store.updateCategory(editing, { name: draft.name, icon, ...extra });
           done(editing);
         } else {
-          done(await ctx.store.addCategory({ name: draft.name, type: kind, icon, savings: sav }));
+          done(await ctx.store.addCategory({ name: draft.name, type: kind, icon, ...extra }));
         }
       } catch (e) {
         errBox.textContent = e?.message || 'Não foi possível guardar. Tenta outra vez.';
@@ -63,6 +67,25 @@ export function openCategorySheet(ctx, { type, category = null }) {
       }
     }
 
+    const radios = [...shade.querySelectorAll('.grpseg button')];
+    function pickGroup(g, focus = false) {
+      group = g;
+      errBox.textContent = '';
+      for (const b of radios) {
+        const on = b.dataset.g === g;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-checked', String(on));
+        b.tabIndex = on ? 0 : -1;
+        if (on && focus) b.focus();
+      }
+    }
+    shade.querySelector('.grpseg')?.addEventListener('keydown', e => {
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!step) return;
+      e.preventDefault();
+      const at = Math.max(0, GROUPS.indexOf(e.target.dataset?.g));
+      pickGroup(GROUPS[(at + step + GROUPS.length) % GROUPS.length], true);
+    });
     shade.addEventListener('click', e => {
       e.stopPropagation();
       const el = e.target.closest('[data-act]');
@@ -74,11 +97,7 @@ export function openCategorySheet(ctx, { type, category = null }) {
         icon = el.dataset.v;
         for (const b of shade.querySelectorAll('.emojis button')) b.classList.toggle('on', b === el);
         shade.querySelector('.namein .e').textContent = icon;
-      } else if (act === 'toggle-sav') {
-        savings = !savings;
-        el.setAttribute('aria-checked', String(savings));
-        el.querySelector('.tog').classList.toggle('on', savings);
-      }
+      } else if (act === 'group') pickGroup(el.dataset.g);
     });
     input.addEventListener('input', () => { errBox.textContent = ''; });
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });

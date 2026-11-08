@@ -42,8 +42,8 @@ try {
     ['Saídas', 'Entradas', 'Perfis', 'Cópia de segurança e conta']);
   assert.deepEqual(await chrome.eval(names('Entradas')), ['💼Salário', '💶Outros']);
   assert.ok((await chrome.eval(names('Saídas'))).includes('📈Investimentospoupança'));
-  assert.equal(await chrome.eval(`${rowsOf('Saídas')}.querySelector('.tag').textContent`), 'poupança');
-  assert.equal(await chrome.eval(`getComputedStyle(${rowsOf('Saídas')}.querySelector('.tag')).color`), 'rgb(31, 122, 90)');
+  assert.equal(await chrome.eval(`${rowsOf('Saídas')}.querySelector('.tag.grp:not(.muted)').textContent`), 'poupança');
+  assert.equal(await chrome.eval(`getComputedStyle(${rowsOf('Saídas')}.querySelector('.tag.grp:not(.muted)')).color`), 'rgb(31, 122, 90)');
   assert.deepEqual(await chrome.eval(names('Perfis')), ['PPerfil Aaberto', 'PPerfil B']);
   assert.deepEqual(await chrome.eval(`[...document.querySelectorAll('.scroll .btn')].map(b => b.textContent.trim())`),
     ['Exportar cópia', 'Importar cópia', 'Mudar código de Perfil A'], 'em demonstração não há Terminar sessão');
@@ -56,7 +56,7 @@ try {
   assert.equal(await chrome.eval(text('.sheet .title')), 'Nova categoria de saída');
   await chrome.type('#catname', 'Ginásio');
   await chrome.click('.emojis button[data-v="🏋️"]');
-  await chrome.click('[data-act="toggle-sav"]');
+  await chrome.click('[data-act="group"][data-g="poupanca"]');
   await chrome.click('[data-act="sheet-save"]');
   await waitFor(chrome, `!document.querySelector('.shade') && ${names('Saídas')}.includes('🏋️Ginásiopoupança')`);
 

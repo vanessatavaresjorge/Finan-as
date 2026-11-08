@@ -72,7 +72,7 @@ try {
   await waitFor(chrome, `!!document.querySelector('.sheet #catname')`);
   assert.equal(await chrome.eval(text('.sheet .title')), 'Nova categoria de saída');
   assert.equal(await chrome.eval(`document.querySelectorAll('.emojis button').length`), 54);
-  assert.equal(await chrome.eval(`!!document.querySelector('.sheet .switch')`), true);
+  assert.equal(await chrome.eval(`!!document.querySelector('.sheet .seg')`), true);
   await chrome.type('#catname', 'Ginásio');
   await chrome.eval(OTHER);
   await chrome.eval(`__demo.store.addCategory({ name: 'Outra', type: 'out', icon: '⭐', savings: false })`);
@@ -86,7 +86,7 @@ try {
   assert.equal(await chrome.eval(text('.sheet .error')), 'Já existe uma categoria com esse nome.');
   await chrome.type('#catname', 'Ginásio');
   await chrome.eval(`document.querySelector('.emojis button[data-v="🏋️"]').click()`);
-  await chrome.click('.sheet [data-act="toggle-sav"]');
+  await chrome.click('.sheet [data-act="group"][data-g="poupanca"]');
   await chrome.click('[data-act="sheet-save"]');
   await waitFor(chrome, `!document.querySelector('.sheet')`);
   assert.equal(await chrome.eval(`document.querySelector('#chips .chip.on')?.textContent.trim()`), '🏋️Ginásio');
@@ -99,11 +99,11 @@ try {
   await chrome.type('#catname', 'Descartada');
   await chrome.click('.sheet [data-act="sheet-cancel"]');
   assert.equal(await chrome.eval(`!document.querySelector('.sheet') && __demo.store.getState().categories.length`), before);
-  // Entrada sheet has no savings switch
+  // Entrada sheet has no group choice
   await chrome.eval(`document.querySelector('.seg button[data-v="in"]').click()`);
   await chrome.click('#chips .chip.new');
   assert.equal(await chrome.eval(text('.sheet .title')), 'Nova categoria de entrada');
-  assert.equal(await chrome.eval(`!!document.querySelector('.sheet .switch')`), false);
+  assert.equal(await chrome.eval(`!!document.querySelector('.sheet .seg')`), false);
   await chrome.click('.sheet [data-act="sheet-cancel"]');
 
   // ---- Edit: value shown as 12,50; the type of the category does not change ----
@@ -165,7 +165,7 @@ try {
   await waitFor(chrome, `!!document.querySelector('.sheet #catname')`);
   assert.equal(await chrome.eval(text('.sheet .title')), 'Editar categoria');
   assert.equal(await chrome.eval(val('#catname')), 'Salário');
-  assert.equal(await chrome.eval(`!!document.querySelector('.sheet .switch')`), false);
+  assert.equal(await chrome.eval(`!!document.querySelector('.sheet .seg')`), false);
   await chrome.type('#catname', 'Ordenado');
   await chrome.click('[data-act="sheet-save"]');
   assert.equal(await chrome.eval(`window.__ed`), 'salario');

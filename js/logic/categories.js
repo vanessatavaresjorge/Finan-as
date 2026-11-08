@@ -1,6 +1,6 @@
+import { WISH_IDS } from './groups.js';
 export const ICONS = ['🚗', '⛽', '🛣️', '🅿️', '🚌', '🚕', '✈️', '🔧', '🍽️', '☕', '🍕', '🛒', '🥖', '🍷', '🩺', '💊', '🦷', '💅', '💇', '🧴', '🎬', '🎉', '🎮', '🎵', '⚽', '🏋️', '🏖️', '🎟️', '🏠', '💡', '💧', '📱', '🌐', '👕', '👟', '🛍️', '🎁', '📚', '🎓', '👶', '🧒', '👦', '👧', '🧸', '🐶', '🐱', '💼', '💶', '💳', '🏦', '📈', '🧾', '❤️', '⭐'];
 
-const WISH_IDS = ['restaurantes', 'beleza', 'lazer'];
 const cat = (id, name, type, icon, order) => ({
   id, name, type, icon, ...(type === 'out' ? { group: WISH_IDS.includes(id) ? 'desejo' : 'necessidade' } : {}),
   savings: false, order });

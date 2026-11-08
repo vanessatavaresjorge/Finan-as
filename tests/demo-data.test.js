@@ -12,7 +12,7 @@ test('demo data: profiles and categories', () => {
   for (const p of d.profiles) assert.deepEqual([p.pinHash, p.pinSalt, p.pinIter], [null, null, null]);
   for (const c of DEFAULT_CATEGORIES) assert.ok(d.categories.some(x => x.id === c.id));
   const inv = d.categories.find(c => c.id === 'inv');
-  assert.deepEqual({ ...inv, order: 0 }, { id: 'inv', name: 'Investimentos', type: 'out', icon: '📈', savings: true, order: 0 });
+  assert.deepEqual({ ...inv, order: 0 }, { id: 'inv', name: 'Investimentos', type: 'out', icon: '📈', group: 'poupanca', savings: true, order: 0 });
   assert.equal(new Set(d.categories.map(c => c.order)).size, d.categories.length);
 });
 

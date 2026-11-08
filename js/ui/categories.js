@@ -7,6 +7,7 @@ import { hashPin, verifyPin, lockoutState, registerFailure, registerSuccess, MAX
 import { openCategorySheet } from './catsheet.js';
 import { openOpeningSheet } from './opening.js';
 import { hasOpening } from '../logic/balance.js';
+import { groupOf, GROUP_LABELS } from '../logic/groups.js';
 import { formatEur } from '../logic/format.js';
 import { confirmSheet } from './dialog.js';
 import { pinPad, askNewPin } from './pinpad.js';
@@ -25,7 +26,7 @@ const toast = (ctx, msg) => ctx.showError?.(msg);
 
 function catSection(categories, type, title) {
   return `<div class="sect"><h3>${title}</h3><div class="card" style="padding:0 14px">
-    ${sortCategories(categories, type).map(c => `<div class="catrow"><span><span class="ic">${esc(c.icon)}</span>${esc(c.name)}${c.savings ? '<span class="tag">poupança</span>' : ''}</span><span class="acts">
+    ${sortCategories(categories, type).map(c => `<div class="catrow"><span><span class="ic">${esc(c.icon)}</span>${esc(c.name)}${c.type === 'out' ? `<span class="tag grp${groupOf(c) === 'poupanca' ? '' : ' muted'}">${GROUP_LABELS[groupOf(c)].toLocaleLowerCase('pt-PT')}</span>` : ''}</span><span class="acts">
       <button data-act="editcat" data-cat="${esc(c.id)}">Editar</button><button class="del" data-act="delcat" data-cat="${esc(c.id)}">Eliminar</button></span></div>`).join('')}
     <div class="catrow" style="border:0"><button class="addcat" data-act="newcat" data-v="${type}">+ Nova categoria</button></div></div></div>`;
 }

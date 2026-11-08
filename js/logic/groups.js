@@ -3,12 +3,12 @@ export const GROUPS = ['necessidade', 'desejo', 'poupanca'];
 export const GROUP_LABELS = { necessidade: 'Necessidade', desejo: 'Desejo', poupanca: 'Poupança' };
 export const TARGETS = { necessidade: 50, desejo: 30, poupanca: 20 };
 
-const WISHES = ['restaurantes', 'beleza', 'lazer'];
+export const WISH_IDS = ['restaurantes', 'beleza', 'lazer'];
 
 export function groupOf(category) {
   if (GROUPS.includes(category.group)) return category.group;
   if (category.savings === true) return 'poupanca';
-  if (WISHES.includes(category.id)) return 'desejo';
+  if (WISH_IDS.includes(category.id)) return 'desejo';
   return 'necessidade';
 }
 

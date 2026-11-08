@@ -331,3 +331,7 @@ table.movs tr.none td { text-align:center; color:var(--muted); padding:22px 8px;
 .openrow .ov.neg { color:var(--danger); }
 .openrow button { font-size:14px; color:var(--accent); padding:6px 4px 6px 8px; }
 .btn.danger-text { color:var(--danger); }
+.tag.muted { color:var(--muted); }
+.grpseg { margin-top:6px; }
+.grpseg button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.sheet .hint { color:var(--muted); font-size:13px; line-height:1.35; margin:8px 2px 0; }
