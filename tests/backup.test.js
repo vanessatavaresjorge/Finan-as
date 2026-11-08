@@ -155,3 +155,9 @@ test('null opening fields count as absent', () => {
   const merged = mergeProfilesForImport([{ id:'a', name:'Ana', pinHash:'h', pinSalt:'s', pinIter:1, openingCents:100, openingDate:'2026-10-31' }], r.data.profiles);
   assert.equal(merged[0].openingCents, null); assert.equal(merged[0].openingDate, null);
 });
+test('export keeps savings consistent with group', () => {
+  const base = categories.find(c => c.type === 'out');
+  const cats = [{ ...base, id: 'x1', group: 'poupanca', savings: false }, { ...base, id: 'x2', group: 'desejo', savings: true }];
+  const out = buildBackup({ ...data, categories: cats }).categories;
+  assert.equal(out[0].savings, true); assert.equal(out[1].savings, false);
+});

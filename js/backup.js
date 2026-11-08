@@ -1,6 +1,6 @@
 import { todayISO } from './logic/format.js';
 import { hasOpening } from './logic/balance.js';
-import { GROUPS, groupOf } from './logic/groups.js';
+import { GROUPS, groupOf, withGroup } from './logic/groups.js';
 
 export const INVALID_BACKUP = 'Este ficheiro não é uma cópia de segurança válida desta app.';
 
@@ -11,7 +11,7 @@ export function buildBackup({ profiles, categories, moves }, now = new Date()) {
     profiles: profiles.map((p) => (hasOpening(p)
       ? { id: p.id, name: p.name, openingCents: p.openingCents, openingDate: p.openingDate }
       : { id: p.id, name: p.name })),
-    categories: categories.map(c => (c.type === 'out' ? { ...c, group: groupOf(c) } : c)),
+    categories: categories.map(c => (c.type === 'out' ? withGroup(c) : c)),
     moves,
   };
 }

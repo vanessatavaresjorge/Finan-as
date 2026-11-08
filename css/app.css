@@ -118,12 +118,6 @@ input { font:inherit; color:inherit; }
 .meter i { display:block; height:100%; border-radius:3px; background:var(--in); }
 .savecard p { font-size:13px; color:var(--muted); margin-top:8px; line-height:1.4; }
 .tag { font-size:11px; color:var(--in); border:1px solid currentColor; border-radius:6px; padding:1px 5px; margin-left:8px; vertical-align:2px; }
-.switch { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-top:16px; padding:12px 14px; text-align:left; width:100%; }
-.switch small { display:block; color:var(--muted); font-size:13px; margin-top:3px; line-height:1.35; }
-.tog { flex:none; width:50px; height:30px; border-radius:15px; background:var(--track); position:relative; transition:background .15s; }
-.tog::after { content:''; position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .15s; }
-.tog.on { background:var(--in); }
-.tog.on::after { left:23px; }
 .yseg { margin-top:14px; }
 .cols button { position:relative; }
 .cols i { position:absolute; left:50%; transform:translateX(-50%); }
