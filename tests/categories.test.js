@@ -47,3 +47,9 @@ test('profile names', async () => {
   assert.equal(validateProfileName('Ana', profiles, 'a'), null);
   assert.equal(validateProfileName('Rui', profiles), null);
 });
+
+test('default categories have groups', () => {
+  assert.deepEqual(DEFAULT_CATEGORIES.filter(c => c.type === 'out').map(c => [c.id, c.group]),
+    [['carro','necessidade'],['combustivel','necessidade'],['restaurantes','desejo'],['supermercado','necessidade'],['saude','necessidade'],['beleza','desejo'],['lazer','desejo'],['via-verde','necessidade']]);
+  assert.ok(DEFAULT_CATEGORIES.filter(c => c.type === 'in').every(c => !('group' in c)));
+});

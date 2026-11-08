@@ -1,9 +1,28 @@
 import { balanceAt, houseBalance, hasOpening } from './balance.js';
 import { todayISO } from './format.js';
+import { withGroup } from './groups.js';
 
 export function categoryOf(categories, id, type = 'out') {
-  return categories.find(c => c.id === id)
-    || { id, name: 'Sem categoria', icon: '❔', type, savings: false };
+  return withGroup(categories.find(c => c.id === id)
+    || { id, name: 'Sem categoria', icon: '❔', type, savings: false });
+}
+
+// 50/30/20: needs, wishes, and savings (savings-group outs plus what was left over).
+export function ruleModel(moves, categories, prefix, pred = () => true) {
+  let inn = 0, out = 0, nec = 0, des = 0, pou = 0;
+  for (const m of moves) {
+    if (!m.date.startsWith(prefix) || !pred(m)) continue;
+    if (m.type === 'in') { inn += m.cents; continue; }
+    out += m.cents;
+    const g = categoryOf(categories, m.categoryId, m.type).group;
+    if (g === 'desejo') des += m.cents;
+    else if (g === 'poupanca') pou += m.cents;
+    else nec += m.cents;
+  }
+  pou += Math.max(0, inn - out);
+  const total = nec + des + pou;
+  const r = n => Math.round(n / total * 100);
+  return { nec, des, pou, total, pct: total > 0 ? { nec: r(nec), des: r(des), pou: r(pou) } : null };
 }
 
 export function periodStats(moves, categories, prefix, pred = () => true) {
@@ -70,7 +89,12 @@ export function monthModel({ moves, categories, profiles, ym, view }) {
         categoryId: m.categoryId, icon: c.icon, categoryName: c.name };
     });
 
-  return { totals, split, categories: cats, moves: list, balance: balanceModel(moves, profiles, view, ym) };
+  const rule = {
+    totals: ruleModel(moves, categories, ym, inView),
+    split: casa ? profiles.map(p => ({ name: p.name, pct: ruleModel(moves, categories, ym, m => m.profileId === p.id).pct })) : null,
+  };
+
+  return { totals, split, categories: cats, moves: list, rule, balance: balanceModel(moves, profiles, view, ym) };
 }
 
 export function niceScale(maxCents) {
@@ -100,6 +124,10 @@ export function yearModel({ moves, categories, profiles, year, view, mode, filte
   const idx = [...Array(12).keys()];
   const nowYm = today.slice(0, 7);
   const balance = balanceModel(moves, profiles, view, nowYm.startsWith(yp) ? nowYm : `${year}-12`);
+  const rule = {
+    totals: ruleModel(moves, categories, yp, inView),
+    split: casa ? profiles.map(p => ({ name: p.name, pct: ruleModel(moves, categories, yp, m => m.profileId === p.id).pct })) : null,
+  };
 
   if (mode === 'poupanca') {
     const stats = (prefix, pred) => periodStats(moves, categories, prefix, pred);
@@ -115,7 +143,7 @@ export function yearModel({ moves, categories, profiles, year, view, mode, filte
       return { name: p.name, saved: s.saved, rate: s.rate };
     };
     return {
-      balance, rate: y.rate, saved: y.saved, inn: y.inn, inv: y.inv, best, months,
+      balance, rule, rate: y.rate, saved: y.saved, inn: y.inn, inv: y.inv, best, months,
       split: casa ? profiles.map(p => person(yp, p)) : null,
       monthSplit: casa ? idx.map(i => profiles.map(p => person(mp(i), p))) : null,
       scale: percentScale(months.map(m => m && m.rate)),
@@ -132,7 +160,7 @@ export function yearModel({ moves, categories, profiles, year, view, mode, filte
   months.forEach((cents, month) => { if (cents > 0 && (!highest || cents > highest.cents)) highest = { month, cents }; });
   const person = (prefix, p) => ({ name: p.name, cents: out(prefix, m => m.profileId === p.id) });
   return {
-    balance, total, average: active ? total / active : null, highest, months,
+    balance, rule, total, average: active ? total / active : null, highest, months,
     split: casa ? profiles.map(p => person(yp, p)) : null,
     monthSplit: casa ? idx.map(i => profiles.map(p => person(mp(i), p))) : null,
     scale: niceScale(Math.max(0, ...months)),

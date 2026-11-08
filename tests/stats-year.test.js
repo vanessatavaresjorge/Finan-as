@@ -46,3 +46,17 @@ test('year balance uses current month or December', async () => {
   assert.equal(c.balance.split.length, 2);
   assert.ok(!JSON.stringify(c).includes('segredo-b'));
 });
+
+test('year rule', async () => {
+  const { ruleModel } = await import('../js/logic/stats.js');
+  for (const mode of ['gastos', 'poupanca']) {
+    const y = yearModel({moves, categories, profiles, year:2026, view:'a', mode});
+    assert.deepEqual(y.rule.totals, ruleModel(moves, categories, '2026-', m => m.profileId === 'a'));
+    assert.equal(y.rule.split, null);
+  }
+  const y = yearModel({moves, categories, profiles, year:2026, view:'a', mode:'gastos'});
+  assert.deepEqual(y.rule.totals, { nec:31000, des:0, pou:169000, total:200000, pct:{ nec:16, des:0, pou:85 } });
+  const c = yearModel({moves, categories, profiles, year:2026, view:'casa', mode:'gastos'});
+  assert.deepEqual(c.rule.split.map(s => s.name), ['Ana', 'Rui']);
+  assert.ok(!JSON.stringify(c.rule).includes('pneus'));
+});

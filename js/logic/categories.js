@@ -1,6 +1,9 @@
 export const ICONS = ['🚗', '⛽', '🛣️', '🅿️', '🚌', '🚕', '✈️', '🔧', '🍽️', '☕', '🍕', '🛒', '🥖', '🍷', '🩺', '💊', '🦷', '💅', '💇', '🧴', '🎬', '🎉', '🎮', '🎵', '⚽', '🏋️', '🏖️', '🎟️', '🏠', '💡', '💧', '📱', '🌐', '👕', '👟', '🛍️', '🎁', '📚', '🎓', '👶', '🧒', '👦', '👧', '🧸', '🐶', '🐱', '💼', '💶', '💳', '🏦', '📈', '🧾', '❤️', '⭐'];
 
-const cat = (id, name, type, icon, order) => ({ id, name, type, icon, savings: false, order });
+const WISH_IDS = ['restaurantes', 'beleza', 'lazer'];
+const cat = (id, name, type, icon, order) => ({
+  id, name, type, icon, ...(type === 'out' ? { group: WISH_IDS.includes(id) ? 'desejo' : 'necessidade' } : {}),
+  savings: false, order });
 
 export const DEFAULT_CATEGORIES = [
   cat('carro', 'Carro', 'out', '🚗', 0),

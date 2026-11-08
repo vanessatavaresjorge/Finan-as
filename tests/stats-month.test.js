@@ -48,3 +48,16 @@ test('balance in profile and casa views', async () => {
   assert.equal(c2.balance.hasOpening, false);
   const json = JSON.stringify(c); assert.ok(!json.includes('pneus') && !json.includes('segredo-b'));
 });
+
+test('casa rule split has percentages only, no notes', async () => {
+  const { ruleModel } = await import('../js/logic/stats.js');
+  const m = monthModel({ moves, categories, profiles, ym:'2026-11', view:'casa' });
+  assert.deepEqual(m.rule.totals, { nec:50000, des:0, pou:250000, total:300000, pct:{ nec:17, des:0, pou:83 } });
+  assert.deepEqual(m.rule.split, [{ name:'Ana', pct:{ nec:15, des:0, pou:85 } }, { name:'Rui', pct:{ nec:20, des:0, pou:80 } }]);
+  assert.ok(!JSON.stringify(m).includes('segredo-b'));
+  const p = monthModel({ moves, categories, profiles, ym:'2026-11', view:'a' });
+  assert.equal(p.rule.split, null);
+  assert.deepEqual(p.rule.totals, ruleModel(moves, categories, '2026-11', x => x.profileId === 'a'));
+  const empty = monthModel({ moves, categories, profiles: [...profiles, { id:'z', name:'Zé' }], ym:'2026-11', view:'casa' });
+  assert.equal(empty.rule.split[2].pct, null);
+});
